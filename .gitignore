@@ -1,0 +1,6 @@
+__pycache__/
+
+.env
+
+bot/alembic.ini
+bot/migrations

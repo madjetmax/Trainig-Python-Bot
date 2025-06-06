@@ -1,0 +1,502 @@
+from aiogram import Router, F, Bot
+from aiogram.types import CallbackQuery, Message
+import datetime
+from zoneinfo import ZoneInfo
+
+from config import *
+
+# states
+from aiogram.fsm.context import FSMContext
+from states import user as states
+
+from keyboards import callback_filters
+from keyboards.user import training as kbs
+from texts import user as texts
+import database as db
+from database.models import User, FinishedUserTraining, UserTrainings
+from training_timer import Timer
+
+router = Router()
+
+async def delete_messages(bot: Bot, chat_id, messages):
+    if messages:
+        await bot.delete_messages(chat_id, messages)
+
+
+# *user training and work with timer
+async def on_timer_update(timer: Timer, state: FSMContext):
+    state_data = await state.get_data()
+
+    message: Message = state_data["message"]
+    
+    minutes, seconds = timer.get_clear_time()
+
+    # checking if training state is break or warmup
+    current_training_state = state_data["training_state"]
+
+    if current_training_state == "break":
+        text = f"Brake, {minutes}:{seconds} left"
+    if current_training_state == "warmup":
+        text = f"Warm Up, {minutes}:{seconds} left"
+    
+    kb = kbs.get_break_controll()
+    
+    await message.edit_text(text, reply_markup=kb)
+
+
+async def on_timer_end(timer: Timer, state: FSMContext):
+    state_data = await state.get_data()
+    user_data = state_data["user_data"]
+    message: Message = state_data["message"]
+
+    await message.delete()
+
+    # get and update prep ind
+    current_rep_ind = state_data.get("current_rep_ind")
+
+    # all reps 
+    training_data = state_data.get("full_training_data")
+
+    # get rep data on ind
+    all_reps = training_data["reps"]
+    if len(all_reps) > current_rep_ind:
+        rep_data = all_reps[current_rep_ind]
+        rep_name = rep_data["name"]
+
+        if rep_name != "break":
+            # send rep 
+            kb = kbs.get_break()
+            text = f"Current rep: {rep_name}"
+            msg = await message.answer(text, reply_markup=kb) # send new message to notify user
+
+            current_rep_ind += 1
+
+            # update state
+            await state.update_data(
+                message=msg,
+                current_rep_ind=current_rep_ind,
+                training_state=f"rep_{rep_name}",
+            )
+    else:
+        await message.answer("training finished!")
+
+        # getting end time
+        tz = ZoneInfo(DATETIME_TIME_ZONE)
+        now = datetime.datetime.now(tz)
+
+        state_data = await state.update_data(
+            stopped=True,
+            time_end=now,
+        )
+
+        # get text
+        text = get_finished_training_result(state_data)
+
+        await message.answer(text)
+
+        # adding to datebase
+        await db.create_user_fihished_trainig(user_data.id, data=state_data)
+
+        await state.clear()
+
+        # gettin and stopping timer
+        timer: Timer = state_data["timer"]
+        if timer.on_run:
+            await timer.stop()
+            timer.time = 0
+            timer.max_time = 0
+
+
+
+@router.callback_query(callback_filters.UserStartTraining.filter())
+async def confirm_start_training(call: CallbackQuery, callback_data: callback_filters.UserStartTraining, state: FSMContext):
+    message: Message = call.message
+    user_data = call.from_user
+    call_data = callback_data.data
+
+    if call_data == "start":
+        # set warmup on the very start of training
+        await state.clear()
+        await state.set_state(states.UserTraining)
+
+        warmup_time = 10 # 5 minutes. set this value in seconds
+
+        training_timer = Timer(user_data.id, warmup_time)
+
+        tz = ZoneInfo(DATETIME_TIME_ZONE)
+        now = datetime.datetime.now(tz)
+        day_name = now.strftime("%A")
+
+        # getting current day training data
+        user_trainings_data = await db.get_user_trainings(user_data.id)
+        training_data = user_trainings_data.days_data[day_name]
+
+        # counting reps count filtering list if reps
+        all_reps_count = len([rep for rep in training_data["reps"] if rep["name"] != "break"]) 
+
+        await state.update_data(
+            user_data=user_data,
+            full_training_data=training_data,
+            timer=training_timer,
+            training_state="warmup",
+            time_start=now,
+            current_rep_ind=0,
+            all_reps_count=all_reps_count,
+            reps_finished=0,
+            message=message,
+            stopped=False,
+            pauses=[],
+        )
+        minutes, seconds = training_timer.get_clear_time()
+
+        text = f"Warm Up, {minutes}:{seconds} left"
+        kb = kbs.get_break_controll()
+        msg = await message.edit_text(text, reply_markup=kb)       
+        training_timer.message = msg
+
+        # setting timer update and end functions that will be call on these events
+        training_timer.on_update_funk = on_timer_update
+        training_timer.on_update_funk_args = (training_timer, state)
+
+        training_timer.on_end_funk = on_timer_end
+        training_timer.on_end_funk_args = (training_timer, state)
+
+        await training_timer.start()
+
+    elif call_data == "not_today": # todo reduce user aura hahahaahahhhahahha (evil laugh)
+        await call.answer("poganyu😭😟😟😟🙍🏿🙍🏿🙍🏿🙍🏿🙍🏿")
+
+# trainig plan. taking a break after rep
+@router.callback_query(callback_filters.UserNavigateTrainingStates.filter())
+async def navigate_training_states(call: CallbackQuery, callback_data: callback_filters.UserNavigateTrainingStates, state: FSMContext):
+    message: Message = call.message
+    user_data = call.from_user
+    navigate_data = callback_data.data
+    state_data = await state.get_data()
+
+    if state_data["stopped"]:
+        return
+
+    # all reps 
+    training_data = state_data.get("full_training_data")
+    if training_data == None: # check if state is UserTraining and not other like UserSetUp
+        await message.answer(texts.start_training)
+
+    if navigate_data == "break": # start timer agin on new time of the break
+
+        # get and update finished reps count
+        reps_finished = state_data["reps_finished"]
+        reps_finished += 1
+
+        message: Message = state_data["message"]
+
+        # get and update prep ind
+        current_rep_ind = state_data.get("current_rep_ind")
+
+
+        # get rep data on ind
+        all_reps = training_data["reps"]
+        if len(all_reps) > current_rep_ind:
+            rep_data = all_reps[current_rep_ind]
+            rep_name = rep_data["name"]
+
+            if rep_name == "break":
+                # send break 
+                training_timer: Timer = state_data["timer"]
+
+                # set time from break data
+                training_timer.max_time = rep_data["minutes"] * 60 + rep_data["seconds"]
+                training_timer.time = rep_data["minutes"] * 60 + rep_data["seconds"]
+
+                # get time to show
+                minutes, seconds = training_timer.get_clear_time()
+
+                # send message
+                text = f"Break, {minutes}:{seconds} left"
+                kb = kbs.get_break_controll()
+                await message.edit_text(text, reply_markup=kb)
+                current_rep_ind += 1
+
+                # update state
+                await state.update_data(
+                    current_rep_ind=current_rep_ind,
+                    reps_finished=reps_finished,
+                    training_state="break",
+                )
+
+                await training_timer.start()
+        else:
+            await message.answer("training finished!")
+            print(2)
+
+            # gettin and stopping timer
+            timer: Timer = state_data["timer"]
+            if timer.on_run:
+                await timer.stop()
+                timer.time = 0
+                timer.max_time = 0
+
+            # getting end time
+            tz = ZoneInfo(DATETIME_TIME_ZONE)
+            now = datetime.datetime.now(tz)
+
+            state_data = await state.update_data(
+                stopped=True,
+                time_end=now,
+            )
+            # get text
+            text = get_finished_training_result(state_data)
+
+            await message.answer(text)
+
+            # adding to datebase
+            await db.create_user_fihished_trainig(user_data.id, data=state_data)
+
+            await state.clear()
+
+# controll break and warmup timer, add 30 seconds
+@router.callback_query(callback_filters.UserBreakControll.filter())
+async def break_timer_controll(call: CallbackQuery, callback_data: callback_filters.UserBreakControll, state: FSMContext):
+    message: Message = call.message
+    user_data = call.from_user
+
+    action = callback_data.action
+
+    state_data = await state.get_data()
+
+    timer: Timer | None = state_data.get("timer")
+    if timer:
+        if action == "add_30_seconds":
+            timer.time += 30
+            timer.max_time += 30
+            await timer.update_end_time()
+            await timer.update_message()
+    
+    await call.answer("")
+            
+
+# like help commands for handlers
+def get_clear_time(hours, minutes, seconds):
+
+    if len(str(hours)) == 1:
+        hours = "0" + str(hours)
+
+    if len(str(minutes)) == 1:
+        minutes = "0" + str(minutes)
+
+    if len(str(seconds)) == 1:
+        seconds = "0" + str(seconds)
+
+    return f"{hours}:{minutes}.{seconds}"
+
+def get_finished_training_result(state_data: dict):
+    """Takes :code:`state_data` to get data from it, returns text as :class:`str`"""
+    time_start: datetime = state_data["time_start"]
+    time_end: datetime = state_data["time_end"]
+
+    tz = ZoneInfo(DATETIME_TIME_ZONE)
+    now = datetime.datetime.now(tz)
+
+    # get clear time start
+    start_hours = time_start.time().hour
+    start_minutes = time_start.time().minute
+    start_seconds = time_start.time().second
+
+    clear_time_start = get_clear_time(start_hours, start_minutes, start_seconds)
+
+    # get clear time end
+    end_hours = time_end.time().hour
+    end_minutes = time_end.time().minute
+    end_seconds = time_end.time().second
+
+    clear_time_end = get_clear_time(end_hours, end_minutes, end_seconds)
+
+    # calculatin training time
+    training_time: datetime.timedelta = now - time_start
+    
+    training_hours = int(training_time.total_seconds() // 3600)
+    training_minutes = int((training_time.total_seconds() % 3600) // 60)
+    training_seconds = int(training_time.total_seconds() % 60)
+    
+    clear_training_time = get_clear_time(training_hours, training_minutes, training_seconds)
+
+    # calculating finished reps        
+    reps_finished = state_data["reps_finished"]
+    all_reps = state_data["all_reps_count"]
+
+    # getting body_part
+    body_part = state_data["full_training_data"]["selected_part"]
+
+    aura_got = 10 / (all_reps - reps_finished + 1) * (all_reps / 10) # aura based on finished and all reps count. PS maybe I will change it
+
+    text = f"""
+Body part: {body_part}\n
+started at: {clear_time_start}
+end at: {clear_time_end}
+training time: {clear_training_time}\n
+finished reps: {reps_finished}
+reps all: {all_reps}\n
+aura got: {aura_got}
+    """
+
+    return text
+
+# control training. pause finish or back (delete message)
+@router.callback_query(callback_filters.UserControlTraining.filter())
+async def controll_training_status(call: CallbackQuery, callback_data: callback_filters.UserControlTraining, state: FSMContext):
+    message: Message = call.message
+    user_data = call.from_user
+    action = callback_data.data
+
+    state_data = await state.get_data()
+
+    if state_data.get("full_training_data"): # check if current state in UserTraining and not other
+
+        if action == "back":
+            await message.delete()
+
+        if action == "back_to_menu":
+            text, kb = kbs.get_training_control(state_data)
+            await message.edit_text(text, reply_markup=kb)
+
+        if action == "finish":
+            text = "Do you realy want to finish training?"
+            kb = kbs.get_confirm_finish_training()
+            await message.answer(text, reply_markup=kb)
+
+        if action == "pause":            
+            text = "Pause training?\nAfter reset, break timer will end"
+            kb = kbs.get_confirm_pause_training()
+            await message.edit_text(text, reply_markup=kb)
+
+        if action == "resume":
+            timer: Timer = state_data["timer"]
+            if not timer.on_run:
+                if state_data["training_state"] in ["break", "warmup"]: # checking if training state is not rep, to avid bags and messages deletings
+                    await timer.start()
+
+            state_data = await state.update_data(stopped=False)
+            text, kb = kbs.get_training_control(state_data)
+            await message.edit_text(text, reply_markup=kb)
+        
+        if action == "confirm_finish":
+            # gettin and stopping timer
+            timer: Timer = state_data["timer"]
+            if timer.on_run:
+                await timer.stop()
+                timer.time = 0
+                timer.max_time = 0
+
+            # getting end time
+            tz = ZoneInfo(DATETIME_TIME_ZONE)
+            now = datetime.datetime.now(tz)
+
+            state_data = await state.update_data(
+                stopped=True,
+                time_end=now,
+            )
+            # get text
+            text = get_finished_training_result(state_data)
+
+            await message.answer(text)
+
+            # adding to datebase
+            await db.create_user_fihished_trainig(user_data.id, data=state_data)
+
+            await state.clear()
+
+        if action == "confirm_pause":
+            timer: Timer = state_data["timer"]
+            if timer.on_run:
+                await timer.stop()
+                timer.time = 0
+                timer.max_time = 0
+
+            state_data = await state.update_data(stopped=True)
+            
+            text, kb = kbs.get_training_control(state_data)
+            await message.edit_text(text, reply_markup=kb)
+
+    else:
+        await message.answer(texts.start_training)
+
+
+# *user view finished trainings
+# get text from data from database
+def get_training_result(f_t: FinishedUserTraining) -> str:
+    """Takes :code:`f_t` to get data from it, returns text as :class:`str`"""
+    time_start: datetime = f_t.time_start
+    time_end: datetime = f_t.time_end
+
+    tz = ZoneInfo(DATETIME_TIME_ZONE)
+
+    # get clear time start
+    start_hours = time_start.time().hour
+    start_minutes = time_start.time().minute
+    start_seconds = time_start.time().second
+
+    clear_time_start = get_clear_time(start_hours, start_minutes, start_seconds)
+
+    # get clear time end
+    end_hours = time_end.time().hour
+    end_minutes = time_end.time().minute
+    end_seconds = time_end.time().second
+
+    clear_time_end = get_clear_time(end_hours, end_minutes, end_seconds)
+
+    # calculatin training time
+    
+    
+    training_hours = f_t.full_training_time.split(":")[0]
+    training_minutes = f_t.full_training_time.split(":")[1].split(".")[0]
+    training_seconds = f_t.full_training_time.split(":")[1].split(".")[1]
+    
+    clear_training_time = get_clear_time(training_hours, training_minutes, training_seconds)
+
+    # calculating finished reps        
+    reps_finished = f_t.reps_finished
+    all_reps = f_t.all_reps_count
+
+    # getting data in format dd-mm-yy
+    date = f_t.time_start.date()
+    # getting body_part
+    body_part = f_t.full_training_data["selected_part"]
+
+    aura_got = 10 / (all_reps - reps_finished + 1) * (all_reps / 10) # aura based on finished and all reps count. PS maybe I will change it
+
+    text = f"""
+ID: {f_t.id}
+Date: {date}
+Body part: {body_part}\n
+started at: {clear_time_start}
+end at: {clear_time_end}
+training time: {clear_training_time}\n
+finished reps: {reps_finished}
+reps all: {all_reps}\n
+aura got: {aura_got}
+    """
+
+    return text
+@router.callback_query(callback_filters.UserAddMoreFT.filter())
+async def add_more_ft(call: CallbackQuery, callback_data: callback_filters.UserAddMoreFT):
+    message: Message = call.message
+    user_data = call.from_user
+
+    offset = callback_data.offset
+    start = callback_data.start
+
+    user = await db.get_user(user_data.id)
+
+    if user:
+        finished_trainings = user.finished_trainings[start:start+offset]
+        global_i = start
+        for i, f_t in enumerate(finished_trainings):
+            kb = None
+            if i + 1 == len(finished_trainings) and global_i + 1 < len(user.finished_trainings):
+                kb = await kbs.get_add_more_f_t(start+offset, offset)
+            text = get_training_result(f_t)
+            await message.answer(text, reply_markup=kb)
+            global_i += 1
+
+        await message.edit_reply_markup(reply_markup=None)
+
