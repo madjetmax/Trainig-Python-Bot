@@ -4,3 +4,5 @@ __pycache__/
 
 bot/alembic.ini
 bot/migrations
+
+database.db
