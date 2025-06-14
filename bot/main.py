@@ -10,12 +10,11 @@ import scheduler
 from scheduler import user as user_scheduler
 
 # *for deploy
-# from aiogram.client.session.aiohttp import AiohttpSession
-# from aiogram.client.telegram import TelegramAPIServer
+from aiogram.client.session.aiohttp import AiohttpSession
 
-# session = AiohttpSession(proxy="http://proxy.server:3128")
+session = AiohttpSession(proxy="http://proxy.server:3128")
 
-bot = Bot(token=BOT_TOKEN) # session=session)
+bot = Bot(token=BOT_TOKEN, session=session)
 dp = Dispatcher()
 
 dp.include_routers(

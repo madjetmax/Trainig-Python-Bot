@@ -41,8 +41,6 @@ async def start_all_users_training_reminds(bot: Bot):
             create_training_remind(
                 bot, user.id, 
                 days_data, 
-                # now.time().hour,
-                # now.time().minute,
                 trainings.time_start_hours, 
                 trainings.time_start_minutes,
             )

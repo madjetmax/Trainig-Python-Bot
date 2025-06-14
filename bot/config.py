@@ -12,19 +12,19 @@ DB_LOGGING = False
 
 MIGRATIONS_DB_URL = f"sqlite:///../{DB_NAME}"
 
+BASE_TIME_ZONE = "Europe/Kiev"
 
-MODELS_TIME_ZONE = "Europe/Kyiv"
+MODELS_TIME_ZONE = BASE_TIME_ZONE
 
 # datetime
-DATETIME_TIME_ZONE = "Europe/Kyiv"
+DATETIME_TIME_ZONE = BASE_TIME_ZONE
 
 # scheduler
-SCHD_TIME_ZONE = "Europe/Kyiv"
+SCHD_TIME_ZONE = BASE_TIME_ZONE
 SCHD_TRAINING_START_SECONDS = 0 
 
 # training timers
 TIMER_UPDATE_DALAY = 3 # seconds 
-
 
 # training reps names and body parts
 ALL_BODY_PARTS = [
