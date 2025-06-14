@@ -1,6 +1,9 @@
 from aiogram.filters.callback_data import CallbackData
 
 # *training setup
+class UserChooseLang(CallbackData, prefix="user_choose_lang"):
+    lang: str
+
 class UserConfirmSetup(CallbackData, prefix="user_confirm_setup"):
     data: str
 
@@ -11,6 +14,9 @@ class UserSettingDay(CallbackData, prefix="user_setting_day"):
     day: str = " "
     setting: str = " "
     body_part: str = " "
+    
+    add_custom_body_part: bool = False
+    add_custom_rep_name: bool = False
 
     reps_action: str = " "
     rep_name: str = " "
@@ -27,17 +33,22 @@ class UserEditTrainingConfirm(CallbackData, prefix="user_edit_training_confirm")
 
 # *user menu and edit data
 class UserEditData(CallbackData, prefix="user_edit_data"):
-    kb_num: int = -1
     to: str = " "
+
     back_to_day: str = " "
 
     action: str = " "
     switch_day: str = " "
 
+    set_lang: str = " "
+
 class UserEditDay(CallbackData, prefix="user_edit_day"):
     day: str = " "
     setting: str = " "
     body_part: str = " "
+
+    add_custom_body_part: bool = False
+    add_custom_rep_name: bool = False
 
     reps_action: str = " "
     rep_name: str = " "

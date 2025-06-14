@@ -11,73 +11,85 @@ import database as db
 from .. import callback_filters
 from texts import user as user_texts
 
-def confirm_setup() -> InlineKeyboardMarkup:
+# *choose lang on start
+def get_choose_lang():
+    kb = InlineKeyboardBuilder()
+    all_lengs = user_texts.all_lengs_codes
+
+    for lang in all_lengs:
+        text = user_texts.trans_leng_codes[lang]
+        calldata = callback_filters.UserChooseLang(lang=lang).pack()
+
+        kb.row(
+            InlineKeyboardButton(text=text, callback_data=calldata)
+        )
+
+    return kb.as_markup()
+
+
+def confirm_setup(lang) -> InlineKeyboardMarkup:
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Yes", callback_data=callback_filters.UserConfirmSetup(data="confirm").pack())],
-        [InlineKeyboardButton(text="No", callback_data=callback_filters.UserConfirmSetup(data="cancel").pack())],
+        [InlineKeyboardButton(text=user_texts.yes_btn[lang], callback_data=callback_filters.UserConfirmSetup(data="confirm").pack())],
+        [InlineKeyboardButton(text=user_texts.no_btn[lang], callback_data=callback_filters.UserConfirmSetup(data="cancel").pack())],
     ])
 
     return kb
 
 # *setup training on start
-def get_setup_start(**kwargs) -> Any:
+def get_days_choice(**kwargs) -> Any:
     selected_days = kwargs.get("selected_days")
-    return get_week_days(selected_days, 0)
+    return get_week_days(selected_days, 0, kwargs["lang"])
 
-def get_week_days(seleted_days, kb_num) -> InlineKeyboardMarkup:
+def get_week_days(seleted_days, kb_num, lang) -> InlineKeyboardMarkup:
+    """returns text and list on buttons of week days '✅' - day selected and added to db"""
     kb = InlineKeyboardBuilder()
     week_days = user_texts.days_of_week
 
     if seleted_days == None:
         seleted_days_names = []
     else:
-        seleted_days_names = [name for name, data in seleted_days.items()]
+        seleted_days_names = seleted_days.keys()
 
     for day in week_days:
-        name = day
+        text = user_texts.trans_days_of_week[lang][day]
         if day in seleted_days_names:
-            name += " ✅"
+            text += " ✅"
 
-        kb.row(InlineKeyboardButton(text=name, callback_data=callback_filters.UserChooseDay(day=day).pack()))
+        kb.row(InlineKeyboardButton(text=text, callback_data=callback_filters.UserChooseDay(day=day).pack()))
 
-    kb.row(InlineKeyboardButton(text="Next", callback_data=callback_filters.UserConfirmSetupNavigate(kb_num=kb_num+1).pack()))
+    kb.row(InlineKeyboardButton(text=user_texts.next_btn[lang], callback_data=callback_filters.UserConfirmSetupNavigate(kb_num=kb_num+1).pack()))
 
     return kb.as_markup() 
 
-def get_selected_day(day):
-    text = day
+def get_selected_day(day, lang):
+    """returns settings for selected day 'workout body part' and 'reps'"""
+    text = user_texts.trans_days_of_week[lang][day]
 
     kb = InlineKeyboardBuilder()
     
-    kb.row(InlineKeyboardButton(text="workout body part", callback_data=callback_filters.UserSettingDay(day=day, setting="workout_body_part").pack()))
-    kb.row(InlineKeyboardButton(text="Reps", callback_data=callback_filters.UserSettingDay(day=day, setting="reps").pack()))
-
+    # all settings
+    kb.row(InlineKeyboardButton(text=user_texts.workout_body_part_setting_btn[lang], callback_data=callback_filters.UserSettingDay(day=day, setting="workout_body_part").pack()))
+    kb.row(InlineKeyboardButton(text=user_texts.reps_setting_btn[lang], callback_data=callback_filters.UserSettingDay(day=day, setting="reps").pack()))
         
     return (text, kb.as_markup())
 
-def get_selected_days_list(selected_days):
-    for day, data in selected_days.items():
-        yield get_selected_day(day)
+def get_selected_days_list(selected_days, lang):
+    for day in selected_days.keys():
+        yield get_selected_day(day, lang)
 
     # navigation
     kb = InlineKeyboardBuilder()
-    text = "Navigation"
-
+    text = user_texts.navigation_title[lang]
 
     kb_num = 1
-    kb.row(InlineKeyboardButton(text="Back", callback_data=callback_filters.UserConfirmSetupNavigate(kb_num=kb_num-1).pack()))
-    kb.row(InlineKeyboardButton(text="Next", callback_data=callback_filters.UserConfirmSetupNavigate(kb_num=kb_num+1).pack()))
-
+    kb.row(InlineKeyboardButton(text=user_texts.back_btn[lang], callback_data=callback_filters.UserConfirmSetupNavigate(kb_num=kb_num-1).pack()))
+    kb.row(InlineKeyboardButton(text=user_texts.next_btn[lang], callback_data=callback_filters.UserConfirmSetupNavigate(kb_num=kb_num+1).pack()))
 
     yield (text, kb.as_markup())
 
-    
 
-all_body_parts = [
-    "legs", "chest", "back", "arms"
-]
-
-def get_body_parts(selected_part, day):
+def get_body_parts(selected_part, day, all_body_parts, lang):
+    """returns list of rows of InlineKeyboardButton consists of all_body_parts"""
     max_in_row = 3
     rows = []
 
@@ -90,26 +102,32 @@ def get_body_parts(selected_part, day):
             current_row = []
             collumn = 0
 
-        text = part
-        if part == selected_part:
+        text = part[lang]
+        if part["name"] == selected_part:
             text += " ✅"
         current_row.append(
-            InlineKeyboardButton(text=text, callback_data=callback_filters.UserSettingDay(body_part=part, day=day).pack())
+            InlineKeyboardButton(text=text, callback_data=callback_filters.UserSettingDay(body_part=part["name"], day=day).pack())
         )
         collumn += 1
     if current_row:
         rows.append(current_row)
-        
+    
+    # add custom body_part button
+    rows.append(
+        [InlineKeyboardButton(text=user_texts.custom_btn[lang], callback_data=callback_filters.UserSettingDay(add_custom_body_part=True, day=day).pack())]
+    )
 
     return rows
 
-def get_text_from_reps(reps, day):
-    text = f"Reps for {day}\n"
+def get_text_from_reps(reps, day, lang):
+    """returns text from reps data and day"""
+    
+    day = user_texts.trans_days_of_week[lang][day]
+    text = user_texts.reps_list_title[lang].format(day=day)
 
     for rep in reps:
-        
-        
         if rep["name"] == "break":
+            # get time 
             minutes = str(rep["minutes"])
             seconds = str( rep["seconds"])
 
@@ -119,18 +137,27 @@ def get_text_from_reps(reps, day):
             if len(seconds) == 1:
                 seconds = "0" + seconds
 
-            text += f"break, time: {minutes}:{seconds}\n"
+            # add to text
+            text += user_texts.break_in_list[lang].format(
+                minutes=minutes, seconds=seconds
+            )
+            
         else:
-            text += rep["name"] + "\n"
+            rep_name = rep["name"]
+
+            # find rep name on translare or left it in oroginal
+            for _rep in ALL_REPS_NAMES:
+                if _rep["name"] == rep_name:
+                    rep_name = _rep[lang]
+                    break
+
+            text += rep_name + "\n"
     return text
 
-all_reps_names = [
-    "horizontal bar",
-    "push ups",
-    "brusya",
-]
 
-def get_reps(day):
+def get_reps(day, all_reps_names, lang):
+    """returns list of rows of InlineKeyboardButton consists of all_reps_names"""
+    
     max_in_row = 3
     rows = []
 
@@ -143,21 +170,33 @@ def get_reps(day):
             current_row = []
             collumn = 0
 
-        text = rep
+        text = rep[lang]
         current_row.append(
-            InlineKeyboardButton(text=text, callback_data=callback_filters.UserSettingDay(rep_name=rep, day=day).pack())
+            InlineKeyboardButton(text=text, callback_data=callback_filters.UserSettingDay(rep_name=rep["name"], day=day).pack())
         )
         collumn += 1
     if current_row:
         rows.append(current_row)
 
+    # add custom rep_name button
+    rows.append(
+        [InlineKeyboardButton(text=user_texts.custom_btn[lang], callback_data=callback_filters.UserSettingDay(add_custom_rep_name=True, day=day).pack())]
+    )
+
+    # add back button
+    rows.append(
+        [InlineKeyboardButton(text=user_texts.back_btn[lang], callback_data=callback_filters.UserConfirmSetupNavigate(to="day_reps_setting", day=day).pack())]
+    )
+
     return rows
 
-def get_rep_name_setting(day):
+def get_rep_name_setting(day, all_reps_names, lang) -> tuple[str, InlineKeyboardMarkup]:
+    """returns text and buttons of all_reps_names"""
+    
     kb = InlineKeyboardBuilder()
-    text = "select rep name"
+    text = user_texts.select_rep_name_title[lang]
 
-    rows = get_reps(day)
+    rows = get_reps(day, all_reps_names, lang)
 
     for row in rows:
         kb.row(*row)
@@ -165,39 +204,41 @@ def get_rep_name_setting(day):
     return text, kb.as_markup()
 
 
-def get_day_setting_by_name(setting, day, day_data) -> InlineKeyboardMarkup:
+def get_day_setting_by_name(setting, day, day_data, state_data, lang) -> tuple[str, InlineKeyboardMarkup]:
+    """returns setting from its name, takes day and day_data"""
     kb = InlineKeyboardBuilder()
     text = day
 
     if setting == "workout_body_part":
-        text = f"Select body part for {day}"
+        text = user_texts.select_body_part_title[lang].format(day=user_texts.trans_days_of_week[lang][day])
 
-        rows = get_body_parts(day_data.get("selected_part"), day)
+        rows = get_body_parts(day_data.get("selected_part"), day, state_data["all_body_parts"], lang)
         for row in rows:
             kb.row(*row)
 
     if setting == "reps":
         reps = day_data.get("reps")
 
-        if reps:
-            text = get_text_from_reps(reps, day)
-        else:
-            text = "No reps added, tap bellow to add"
+        kb.row(InlineKeyboardButton(text=user_texts.add_rep[lang], callback_data=callback_filters.UserSettingDay(reps_action="add_rep", day=day).pack()))
 
-        kb.row(InlineKeyboardButton(text="Add rep", callback_data=callback_filters.UserSettingDay(reps_action="add_rep", day=day).pack()))
+        if reps: # set text as a list of reps
+            text = get_text_from_reps(reps, day, lang)
 
-        if reps:
-            kb.row(InlineKeyboardButton(text="Delete last rep", callback_data=callback_filters.UserSettingDay(reps_action="del_last_rep", day=day).pack()))
-            kb.row(InlineKeyboardButton(text="Add 1 min to last break", callback_data=callback_filters.UserSettingDay(reps_action="add_1m_to_last_break", day=day).pack()))
-            kb.row(InlineKeyboardButton(text="Remove 1 min from last break", callback_data=callback_filters.UserSettingDay(reps_action="remove_1m_to_last_break", day=day).pack()))
+            kb.row(InlineKeyboardButton(text=user_texts.del_rep[lang], callback_data=callback_filters.UserSettingDay(reps_action="del_last_rep", day=day).pack()))
+            kb.row(InlineKeyboardButton(text=user_texts.add_1_min_break[lang], callback_data=callback_filters.UserSettingDay(reps_action="add_1m_to_last_break", day=day).pack()))
+            kb.row(InlineKeyboardButton(text=user_texts.remove_1_min_break[lang], callback_data=callback_filters.UserSettingDay(reps_action="remove_1m_to_last_break", day=day).pack()))
 
-    kb.row(InlineKeyboardButton(text="Back", callback_data=callback_filters.UserConfirmSetupNavigate(to="selected_days_list", day=day).pack()))
+        else: # set default empty reps texts
+            text = user_texts.empty_reps_title[lang]
+
+    # add back button            
+    kb.row(InlineKeyboardButton(text=user_texts.back_btn[lang], callback_data=callback_filters.UserConfirmSetupNavigate(to="day_setting", day=day).pack()))
 
     return (text, kb.as_markup())
 
-def get_back_to_days_settings() -> InlineKeyboardMarkup:
+def get_back_to_days_settings(lang) -> InlineKeyboardMarkup:
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Back", callback_data=callback_filters.UserConfirmSetupNavigate(kb_num=1).pack())]
+        [InlineKeyboardButton(text=user_texts.back_btn[lang], callback_data=callback_filters.UserConfirmSetupNavigate(kb_num=1).pack())]
     ])
 
     return kb

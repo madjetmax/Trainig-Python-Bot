@@ -22,29 +22,34 @@ router = Router()
 # *training
 
 # get training data: status, time, etc
-@router.message(Command(commands=["training_status"]))
+@router.message(Command("training_status"))
 async def get_training_status(message: Message, state: FSMContext):
     user_data = message.from_user
     state_data = await state.get_data()
+    user = await db.get_user(user_data.id)
+    lang = user.lang
 
     if state_data.get("training_state"): # check if state is UserTraining and not other like UserSetUp
 
-        text, kb = kbs.get_training_control(state_data)
+        text, kb = kbs.get_training_control(state_data, lang)
 
         await message.answer(text, reply_markup=kb)
     else:
-        await message.answer(texts.start_training)
+        await message.answer(texts.start_training[lang])
 
 # get rep or break timer if somehow message with it was deleted
-@router.message(Command(commands=["rep"]))
+@router.message(Command("rep"))
 async def get_current_rep(message: Message, state: FSMContext):
     user_data = message.from_user
     state_data = await state.get_data()
     
+    user = await db.get_user(user_data.id)
+    lang = user.lang
+
     # all reps 
     training_data = state_data.get("full_training_data")
     if training_data == None: # check if state is UserTraining and not other like UserSetUp
-        await message.answer(texts.start_training)
+        await message.answer(texts.start_training[lang])
         return
 
     if state_data["stopped"]:
@@ -61,13 +66,18 @@ async def get_current_rep(message: Message, state: FSMContext):
 
     current_training_state = state_data["training_state"]
 
-    # checking what send based on current training state
+    # checking what to send based on current training state
     if current_training_state == "break":
         timer: Timer = state_data["timer"]        
         minutes, seconds = timer.get_clear_time()
 
-        text = f"Break, {minutes}:{seconds} left"
-        msg = await message.answer(text)
+        # get kb and text, send message 
+        kb = kbs.get_break_controll(lang)
+        text = texts.break_timer_title[lang].format(
+            minutes=minutes, seconds=seconds
+        )
+
+        msg = await message.answer(text, reply_markup=kb)
 
         await state.update_data(
             message=msg # setting new message for udpdate and delete
@@ -77,8 +87,13 @@ async def get_current_rep(message: Message, state: FSMContext):
         timer: Timer = state_data["timer"]        
         minutes, seconds = timer.get_clear_time()
 
-        text = f"Warm Up, {minutes}:{seconds} left"
-        msg = await message.answer(text)
+        # get kb and text, send message 
+        kb = kbs.get_break_controll(lang)
+        text = texts.warmup_title[lang].format(
+            minutes=minutes, seconds=seconds
+        )
+        
+        msg = await message.answer(text, reply_markup=kb)
 
         # update state
         await state.update_data(
@@ -86,8 +101,18 @@ async def get_current_rep(message: Message, state: FSMContext):
         )
 
     else:
-        kb = kbs.get_break()
-        text = f"Current rep: {rep_name}"
+        kb = kbs.get_break(lang)
+
+        rep_name = rep_name["name"]
+        # find rep name on user lang in state_data
+        for rep in state_data["user_reps_names"]:
+            if rep["name"] == rep_name:
+                rep_name = rep[lang]
+                break
+
+        text = texts.rep_title[lang].format(
+            name=rep_name
+        )
         msg = await message.answer(text, reply_markup=kb)
 
         # update state
@@ -95,7 +120,7 @@ async def get_current_rep(message: Message, state: FSMContext):
             message=msg, # setting new message for udpdate and delete
         )
 # get user reps in current training
-def get_all_reps_text(state_data: dict) -> str:
+def get_all_reps_text(state_data: dict, lang) -> str:
     text = ""
     reps = state_data["full_training_data"]["reps"]
     current_rep_ind = state_data["current_rep_ind"]
@@ -103,9 +128,16 @@ def get_all_reps_text(state_data: dict) -> str:
     for i, rep in enumerate(reps, 1):
         if rep["name"] == "break":
             minutes, seconds = get_clear_minites_and_seconds(rep["minutes"], rep["seconds"])
-            rep_text = f"Break, {minutes}:{seconds}"
+            rep_text = texts.break_title[lang].format(
+                minutes=minutes, seconds=seconds
+            )
         else:
             rep_text = rep["name"]
+            # find rep name on user lang in state_data
+            for rep1 in state_data["user_reps_names"]:
+                if rep1["name"] == rep_text:
+                    rep_text = rep1[lang]
+                    break
         
         # mark if done
         if i < current_rep_ind:
@@ -113,23 +145,26 @@ def get_all_reps_text(state_data: dict) -> str:
         
         # mark if current
         if i == current_rep_ind:
-            rep_text = "Current: " + rep_text
+            rep_text = texts.curent_rep[lang].format(name=rep_text)
         text += rep_text + "\n"
     return text
 
 
-@router.message(Command(commands=["reps"]))
+@router.message(Command("reps"))
 async def get_training_reps(message: Message, state: FSMContext):
     user_data = message.from_user
     state_data = await state.get_data()
 
+    user = await db.get_user(user_data.id)
+    lang = user.lang
+
     # all reps 
     training_data = state_data.get("full_training_data")
     if training_data == None: # check if state is UserTraining and not other like UserSetUp
-        await message.answer(texts.start_training)
+        await message.answer(texts.start_training[lang])
         return
     
-    text = get_all_reps_text(state_data)
+    text = get_all_reps_text(state_data, lang)
 
     await message.answer(text)
 
@@ -156,7 +191,7 @@ def get_clear_minites_and_seconds(minutes, seconds) -> tuple[str, str]:
 
     return minutes, seconds
 # get text from data from database
-def get_training_result(f_t: FinishedUserTraining) -> str:
+def get_training_result(f_t: FinishedUserTraining, lang, user_all_body_parts) -> str:
     """Takes :code:`f_t` to get data from it, returns text as :class:`str`"""
     time_start: datetime = f_t.time_start
     time_end: datetime = f_t.time_end
@@ -179,8 +214,6 @@ def get_training_result(f_t: FinishedUserTraining) -> str:
     clear_time_end = get_clear_time(end_hours, end_minutes, end_seconds)
 
     # calculatin training time
-    
-    
     training_hours = f_t.full_training_time.split(":")[0]
     training_minutes = f_t.full_training_time.split(":")[1].split(".")[0]
     training_seconds = f_t.full_training_time.split(":")[1].split(".")[1]
@@ -196,19 +229,24 @@ def get_training_result(f_t: FinishedUserTraining) -> str:
     # getting body_part
     body_part = f_t.full_training_data["selected_part"]
 
+    for part in user_all_body_parts:
+        if part["name"] == body_part:
+            body_part = part[lang]
+            break
+
     aura_got = 10 / (all_reps - reps_finished + 1) * (all_reps / 10) # aura based on finished and all reps count. PS maybe I will change it
 
-    text = f"""
-ID: {f_t.id}
-Date: {date}
-Body part: {body_part}\n
-started at: {clear_time_start}
-end at: {clear_time_end}
-training time: {clear_training_time}\n
-finished reps: {reps_finished}
-reps all: {all_reps}\n
-aura got: {aura_got}
-    """
+    text = texts.finished_training_text[lang].format(
+        id=f_t.id,
+        date=date,
+        body_part=body_part,
+        time_start=clear_time_start,
+        time_end=clear_time_end,
+        training_time=clear_training_time,
+        reps_finished=reps_finished,
+        all_reps=all_reps,
+        aura_got=aura_got,
+    )
 
     return text
 
@@ -227,5 +265,5 @@ async def get_finished_trainings(message: Message):
             if i + 1 == len(finished_trainings) and i + 1 < len(user.finished_trainings):
                 start = offset
                 kb = await kbs.get_add_more_f_t(start, offset)
-            text = get_training_result(f_t)
+            text = get_training_result(f_t, user.lang, user.trainings.all_body_parts)
             await message.answer(text, reply_markup=kb)

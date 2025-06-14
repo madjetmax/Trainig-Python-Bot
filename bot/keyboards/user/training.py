@@ -12,35 +12,36 @@ from .. import callback_filters
 from texts import user as user_texts
 
 
-
-
-
 # *user training
-def get_start_training() -> InlineKeyboardMarkup:
+def get_start_training(lang) -> InlineKeyboardMarkup:
     confirm_data = callback_filters.UserStartTraining(data="start").pack()
     cancel_data = callback_filters.UserStartTraining(data="not_today").pack()
 
+    # start training buttons
+    text1 = user_texts.start_training_confirm_btn[lang]
+    text2 = user_texts.not_today_btn[lang]
+
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Start", callback_data=confirm_data)],
-        [InlineKeyboardButton(text="Not Today", callback_data=cancel_data)],
+        [InlineKeyboardButton(text=text1, callback_data=confirm_data)],
+        [InlineKeyboardButton(text=text2, callback_data=cancel_data)],
     ])
 
     return kb
 
-def get_break() -> InlineKeyboardMarkup:
+def get_break(lang) -> InlineKeyboardMarkup:
     calldata = callback_filters.UserNavigateTrainingStates(data="break").pack()
 
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Take a Break", callback_data=calldata)]
+        [InlineKeyboardButton(text=user_texts.take_break_btn[lang], callback_data=calldata)]
     ])
 
     return kb
 
-def get_break_controll():
+def get_break_controll(lang) -> InlineKeyboardMarkup:
     calldata = callback_filters.UserBreakControll(action="add_30_seconds").pack()
 
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Add 30 Seconds", callback_data=calldata)]
+        [InlineKeyboardButton(text=user_texts.add_30_seconds[lang], callback_data=calldata)]
     ])
 
     return kb    
@@ -61,16 +62,16 @@ def get_clear_time(hours, minutes, seconds):
     return f"{hours}:{minutes}.{seconds}"
 
 
-def get_training_control(state_data: dict) -> tuple[str, InlineKeyboardMarkup]:
+def get_training_control(state_data: dict, lang) -> tuple[str, InlineKeyboardMarkup]:
     # kb
-    pause = [InlineKeyboardButton(text="Pause training", callback_data=callback_filters.UserControlTraining(data="pause").pack())]
+    pause = [InlineKeyboardButton(text=user_texts.pause_training_btn[lang], callback_data=callback_filters.UserControlTraining(data="pause").pack())]
     if state_data["stopped"]:
-        pause = [InlineKeyboardButton(text="Resume training", callback_data=callback_filters.UserControlTraining(data="resume").pack())]
+        pause = [InlineKeyboardButton(text=user_texts.resume_training_btn[lang], callback_data=callback_filters.UserControlTraining(data="resume").pack())]
 
     kb = InlineKeyboardMarkup(inline_keyboard=[
         pause, # row
-        [InlineKeyboardButton(text="Finish training", callback_data=callback_filters.UserControlTraining(data="finish").pack())],
-        [InlineKeyboardButton(text="Back <<", callback_data=callback_filters.UserControlTraining(data="back").pack())],
+        [InlineKeyboardButton(text=user_texts.finish_training_btn[lang], callback_data=callback_filters.UserControlTraining(data="finish").pack())],
+        [InlineKeyboardButton(text=user_texts.back_btn[lang], callback_data=callback_filters.UserControlTraining(data="back").pack())],
     ])
 
     # text
@@ -102,39 +103,46 @@ def get_training_control(state_data: dict) -> tuple[str, InlineKeyboardMarkup]:
     # getting body_part
     body_part = state_data["full_training_data"]["selected_part"]
 
-
-    text = f"""
-Current Body part: {body_part}\n
-training time: {clear_training_time}
-started at: {clear_time_start}\n
-finished reps: {reps_finished}
-reps left: {reps_left}
-    """
-
+    text = user_texts.training_status[lang].format(
+        body_part=body_part,
+        clear_training_time=clear_training_time,
+        clear_time_start=clear_time_start,
+        reps_finished=reps_finished,
+        reps_left=reps_left,
+    )
+    
     return text, kb
 
 # finish and pause confirm
-def get_confirm_finish_training() -> InlineKeyboardMarkup:
+def get_confirm_finish_training(lang) -> InlineKeyboardMarkup:
+    text1 = user_texts.finish_training_confirm_btn[lang]
+    text2 = user_texts.cancel_btn[lang]
+
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Finish", callback_data=callback_filters.UserControlTraining(data="confirm_finish").pack())],
-        [InlineKeyboardButton(text="Cancel", callback_data=callback_filters.UserControlTraining(data="back_to_menu").pack())],
+        [InlineKeyboardButton(text=text1, callback_data=callback_filters.UserControlTraining(data="confirm_finish").pack())],
+        [InlineKeyboardButton(text=text2, callback_data=callback_filters.UserControlTraining(data="back_to_menu").pack())],
     ])
 
     return kb
 
-def get_confirm_pause_training() -> InlineKeyboardMarkup:
+def get_confirm_pause_training(lang) -> InlineKeyboardMarkup:
+    text1 = user_texts.pause_training_confirm_btn[lang]
+    text2 = user_texts.cancel_btn[lang]
+
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Pause", callback_data=callback_filters.UserControlTraining(data="confirm_pause").pack())],
-        [InlineKeyboardButton(text="Cancel", callback_data=callback_filters.UserControlTraining(data="back_to_menu").pack())],
+        [InlineKeyboardButton(text=text1, callback_data=callback_filters.UserControlTraining(data="confirm_pause").pack())],
+        [InlineKeyboardButton(text=text2, callback_data=callback_filters.UserControlTraining(data="back_to_menu").pack())],
     ])
 
     return kb
 
 
-async def get_add_more_f_t(start, offset) -> InlineKeyboardMarkup:
+async def get_add_more_f_t(start, offset, lang) -> InlineKeyboardMarkup:
+    text = user_texts.add_more_btn[lang]
+
     calldata = callback_filters.UserAddMoreFT(offset=offset, start=start).pack()
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Add more", callback_data=calldata)]
+        [InlineKeyboardButton(text=text, callback_data=calldata)]
 
     ])
 

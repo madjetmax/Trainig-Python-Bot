@@ -9,7 +9,7 @@ from .engine import session_maker
 from .models import User, UserTrainings, FinishedUserTraining
 
 # *user
-async def create_user(user_id, user_name, db_session=None) -> User:
+async def create_user(user_id, user_name, lang, db_session=None) -> User:
     if db_session == None:
         db_session = session_maker()
 
@@ -24,7 +24,8 @@ async def create_user(user_id, user_name, db_session=None) -> User:
             new_user = User(
                 id=user_id, 
                 name=user_name,
-                status=status
+                status=status,
+                lang=lang
             )
             db_session.add(new_user)
             await db_session.commit()
@@ -44,6 +45,26 @@ async def get_user(user_id, db_session=None) -> User | None:
         except NoResultFound:
             return None
         
+async def update_user(user_id, data, db_session=None) -> User:
+    if db_session == None:
+        db_session = session_maker()
+
+    async with db_session:
+        query = update(User).where(User.id == user_id).values(**data).options(joinedload(User.trainings), joinedload(User.finished_trainings)).returning(User)
+        data = await db_session.execute(query)
+        
+        await db_session.commit()
+        return data.fetchone()[0]
+        
+async def delete_user(user_id, db_session=None):
+    if db_session == None:
+        db_session = session_maker()
+
+    async with db_session:
+        user = await db_session.get(User, user_id, options=[joinedload(User.trainings), joinedload(User.finished_trainings)])
+        await db_session.delete(user)
+        await db_session.commit()
+        
 async def get_all_users(db_session=None) -> list[User]:
     if db_session == None:
         db_session = session_maker()
@@ -55,8 +76,6 @@ async def get_all_users(db_session=None) -> list[User]:
 
 # *user traninings 
 async def create_user_trainigs(user_id, data: dict, hours, minutes, db_session=None) -> UserTrainings:
-    
-
     days_data = data["days"]
 
     if db_session == None:
@@ -71,6 +90,8 @@ async def create_user_trainigs(user_id, data: dict, hours, minutes, db_session=N
             days_data=days_data,
             time_start_hours=hours,
             time_start_minutes=minutes,
+            all_body_parts=data["all_body_parts"],
+            all_reps_names=data["all_reps_names"],
         )
         db_session.add(new_training)
         await db_session.commit()

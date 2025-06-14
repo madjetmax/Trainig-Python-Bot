@@ -24,3 +24,52 @@ SCHD_TRAINING_START_SECONDS = 0
 
 # training timers
 TIMER_UPDATE_DALAY = 3 # seconds 
+
+
+# training reps names and body parts
+ALL_BODY_PARTS = [
+    {
+        "name": "legs",
+        "en": "Legs", 
+        "uk": "Ноги", 
+    },
+    {
+        "name": "chest",
+        "en": "Chest",
+        "uk": "Груди",
+    },
+    {
+        "name": "back",
+        "en": "back",
+        "uk": "Спина",
+    },
+    {
+        "name": "arms",
+        "en": "Arms",
+        "uk": "Руки",
+    }
+]
+
+ALL_REPS_NAMES = [
+    {
+        "name": "horizontal bar",
+        "en": "Horizontal Bar", 
+        "uk": "Турнік", 
+    },
+    {
+        "name": "push ups",
+        "en": "Push Ups",
+        "uk": "Віджимання",
+    },
+    {
+        "name": "brusya",
+        "en": "Brusya",
+        "uk": "брусья",
+    }
+]
+
+# help
+# for commit database changes
+#* alembic revision --autogenerate -m "commit message"
+#* alembic upgrade head   
+#* alembic stamp head   

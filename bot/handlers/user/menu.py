@@ -2,6 +2,7 @@ from aiogram import Router, F, Bot
 from aiogram.types import Message
 from aiogram.filters import CommandStart, Command
 from aiogram.fsm.context import FSMContext
+
 import asyncio
 
 from config import *
@@ -25,7 +26,7 @@ async def get_user_menu(message: Message, state: FSMContext):
 
     if user:
         # get and send menu
-        text, kb, messages = await kbs.get_user_menu(0)
+        text, kb, _ = await kbs.get_user_menu("main", lang=user.lang)
 
         await message.answer(text, reply_markup=kb)
 
@@ -34,7 +35,6 @@ async def get_user_menu(message: Message, state: FSMContext):
         await message.answer(texts.register)
 
 # change trainings start time
-
 def check_time_valid(text: str):
     try:    
         if ":" in text:
@@ -67,26 +67,28 @@ async def get_new_start_time(message: Message, state: FSMContext):
         bot: Bot = message.bot
         user_data = message.from_user
 
-        # update state
-        await state.update_data(
+        # update and get state
+        state_data = await state.update_data(
             time_start=message.text
         )
 
+        user = await db.get_user(user_data.id)
+        if user == None:
+            return
+        lang = user.lang
+
         # delete messages
         await message.delete()
-        msg = await message.answer("New time was set!", reply_markup=None)
+        msg = await message.answer(texts.new_time_was_set[lang], reply_markup=None)
 
         try:
             await message.bot.delete_message(message.chat.id, message_id-1) 
         except Exception:
             pass
 
-
         # get time
         hours = valid_time[0]
         minutes = valid_time[1]
-
-
 
         # save to database
         update_data = {
@@ -105,9 +107,126 @@ async def get_new_start_time(message: Message, state: FSMContext):
 
         await asyncio.sleep(1)
         # send user menu from trainings page
-        text, kb, _ = await kbs.get_user_menu(-1, "get_edit_trainings", user_data)
+        text, kb, _ = await kbs.get_user_menu("get_edit_trainings", user_data, lang=lang)
         
         await message.answer(text, reply_markup=kb)
     else:
-        await message.answer("Invalid time!")
+        # get state
+        state_data = await state.get_data()
+        lang = state_data["user_lang"]
 
+        await message.answer(texts.invalid_time[lang])
+
+# new body part 
+@router.message(states.UserEditData.new_body_part, F.text)
+async def get_new_body_part(message: Message, state: FSMContext):
+    bot: Bot = message.bot
+
+    text = message.text
+    message_id = message.message_id
+    chat_id = message.chat.id
+
+    user_data = message.from_user
+
+    user = await db.get_user(user_data.id)
+    if user == None:
+        return
+    
+    state_data = await state.get_data()
+
+    day = state_data["selected_day"]
+
+
+    # update body parts
+    all_body_parts = user.trainings.all_body_parts
+    all_body_parts.append(
+        {
+            "name": text,
+            "en": text,
+            "uk": text,
+        }
+    )
+
+    # get and update days data
+    days = user.trainings.days_data
+    days[day]["selected_part"] = text
+    day_data = days[day]
+    
+    data = {
+        "all_body_parts": all_body_parts,
+        "days_data": days,
+    }
+    await db.udpate_user_trainings(user_data.id, data)
+
+    # delete messages
+    await message.delete()
+    await bot.delete_message(chat_id=chat_id, message_id=message_id-1)
+    # udpate message to update
+    text, kb = kbs.get_day_setting_by_name("workout_body_part", day, day_data, lang=user.lang, all_body_parts=all_body_parts)
+
+    await bot.edit_message_text(
+        message_id=state_data["message_to_update"],
+        chat_id=chat_id,
+        text=text,
+        reply_markup=kb
+    )
+
+    await state.set_state(states.UserEditData.days)
+
+# new rep name 
+@router.message(states.UserEditData.new_rep_name, F.text)
+async def get_new_rep_name(message: Message, state: FSMContext):
+    bot: Bot = message.bot 
+
+    text = message.text
+    message_id = message.message_id
+    chat_id = message.chat.id
+
+    user_data = message.from_user
+    user = await db.get_user(user_data.id)
+    if user == None:
+        return
+    
+    state_data = await state.get_data()
+
+    day = state_data["selected_day"]
+
+
+    # update body parts
+    all_reps_names = user.trainings.all_reps_names
+    all_reps_names.append(
+        {
+            "name": text,
+            "en": text,
+            "uk": text,
+        }
+    )
+
+    # get and update days data
+    days = user.trainings.days_data
+    day_data = days[day]
+    
+    data = {
+        "all_reps_names": all_reps_names,
+        "days_data": days,
+    }
+    await db.udpate_user_trainings(user_data.id, data)
+
+    # delete messages
+    await message.delete()
+    try:
+        await bot.delete_message(chat_id=chat_id, message_id=message_id-1)
+    except Exception:
+        pass
+        
+    # udpate message to update
+    text, kb = kbs.get_rep_name_setting(day, all_reps_names, user.lang)
+
+    await bot.edit_message_text(
+        message_id=state_data["message_to_update"],
+        chat_id=chat_id,
+        text=text,
+        reply_markup=kb
+    )
+
+    await state.set_state(states.UserEditData.days)

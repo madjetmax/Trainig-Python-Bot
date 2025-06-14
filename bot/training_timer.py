@@ -29,10 +29,12 @@ class Timer():
 
     # tasks
     async def update_task(self):
-        while True:
-            await asyncio.sleep(TIMER_UPDATE_DALAY)
-            await self.update_message()
-
+        try:
+            while True:
+                await asyncio.sleep(TIMER_UPDATE_DALAY)
+                await self.update_message()
+        except Exception as ex:
+            print(ex)
     async def on_end_task(self):
         await asyncio.sleep(self.time) 
         await self.update_on_end()

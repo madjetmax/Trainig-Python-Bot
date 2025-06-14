@@ -2,13 +2,19 @@ from aiogram import Bot
 from aiogram.types import Message
 import datetime
 
+
 from config import *
 from . import scheduler
 
 import database as db
+from database.models import User
+
 from keyboards.user import training  as training_kbs
 from keyboards.user import register as register_kbs
 from keyboards.user import menu as menu_kbs
+
+from texts import user as texts
+
 
 day_from_full_name = {
     "Monday": "mon",
@@ -35,19 +41,25 @@ async def start_all_users_training_reminds(bot: Bot):
             create_training_remind(
                 bot, user.id, 
                 days_data, 
-                trainings.time_start_hours, 
-                trainings.time_start_minutes,
+                now.time().hour,
+                now.time().minute,
+                # trainings.time_start_hours, 
+                # trainings.time_start_minutes,
             )
     
-async def send_trainig_remind(bot: Bot, user_id):
-    text = "Its training time!"
-    kb = training_kbs.get_start_training()
+async def send_trainig_remind(bot: Bot, user_id: int):
+    user = await db.get_user(user_id)
+    lang = user.lang
 
-    await bot.send_message(user_id, text, reply_markup=kb)
+    text = texts.its_training_time[lang]
+    kb = training_kbs.get_start_training(lang)
+
+    await bot.send_message(user.id, text, reply_markup=kb)
 
 def create_training_remind(bot: Bot, user_id, days: list, hours, minutes):
     # convert days to clear days, ex: Friday -> fri
     days = [day_from_full_name.get(d, d) for d in days]
+    now = datetime.datetime.now()
 
     # get job
     job_id = f'send_training_remind_{user_id}'
@@ -61,7 +73,7 @@ def create_training_remind(bot: Bot, user_id, days: list, hours, minutes):
             day_of_week=", ".join(days), 
             hour=hours, 
             minute=minutes, 
-            second=SCHD_TRAINING_START_SECONDS,
+            second=now.time().second + 1,
             args=(bot, user_id), 
             id=job_id
         )

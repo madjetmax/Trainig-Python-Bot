@@ -9,6 +9,8 @@ from states import user as states
 
 from keyboards import callback_filters
 from keyboards.user import register as kbs
+from keyboards.user import menu as menu_kbs
+
 from texts import user as texts
 import database as db
 
@@ -18,11 +20,27 @@ async def delete_messages(bot: Bot, chat_id, messages):
     if messages:
         await bot.delete_messages(chat_id, messages)
 
-
 # *user training setup on start
+
+# greate choose lang 
+@router.callback_query(callback_filters.UserChooseLang.filter())
+async def choose_lang(call: CallbackQuery, callback_data: callback_filters.UserChooseLang, state: FSMContext):
+    message: Message = call.message
+    user_data = call.from_user
+
+    lang = callback_data.lang
+
+    # send setup
+    kb = kbs.confirm_setup(lang)
+    await message.edit_text(texts.start_training_set_up[lang].format(name=user_data.full_name), reply_markup=kb)
+
+    # update user
+    await db.update_user(user_data.id, {'lang': lang})
+
 @router.callback_query(callback_filters.UserConfirmSetupNavigate.filter())
 async def setup_navigate(call: CallbackQuery, callback_data: callback_filters.UserConfirmSetupNavigate, state: FSMContext):
     message: Message = call.message
+    user_data = call.from_user
     bot: Bot = message.bot
     chat_id = message.chat.id
 
@@ -31,134 +49,310 @@ async def setup_navigate(call: CallbackQuery, callback_data: callback_filters.Us
     day = callback_data.day
 
     if kb_num >= 0:
-        if kb_num == 0:
+        if kb_num == 0: # get choose days 
             state_data = await state.get_data()
-            kb = kbs.get_setup_start(selected_days=state_data.get("days", {}))
+            lang = state_data["user_lang"]
+
+            # send message
+            kb = kbs.get_days_choice(selected_days=state_data.get("days", {}), lang=lang)
             await message.answer(
-                "choose days",
+                texts.choose_days_title[lang],
                 reply_markup=kb
             )
 
+            # delete messages to delete
             messages_to_delete = state_data.get("messages_to_delete", [])
             await delete_messages(bot, chat_id, messages_to_delete)
 
-        if kb_num == 1:
-            
-            selected_days = (await state.get_data()).get("days")
-            days_list = kbs.get_selected_days_list(selected_days)
+            # update and set state 
+            await state.update_data(messages_to_delete=[])
+            await state.set_state(states.UserSetUp.days)
+
+        if kb_num == 1: # get days to setting, ex: body part, reps
+            state_data = await state.get_data()
+            lang = state_data["user_lang"]
+
+            # get selected days list to send
+            selected_days = state_data.get("days", {})
+            days_list = kbs.get_selected_days_list(selected_days, lang=lang)
+
+            if len(selected_days) <= 0:
+                await call.answer(texts.at_least_one_day_answer[lang])
+                return
 
             # adding messages to delete
-            state_data = await state.get_data()
             messages_to_delete = state_data.get("messages_to_delete", [])
 
+            # send messages
             for text, kb in days_list:
                 msg = await message.answer(text, reply_markup=kb)
                 messages_to_delete.append(msg.message_id)
 
+            # update and set state
             await state.update_data(messages_to_delete=messages_to_delete)
-
             await state.set_state(states.UserSetUp.days) # set this to evoid user input and saving the time
 
             await message.delete()
 
-        if kb_num == 2:
-            kb = kbs.get_back_to_days_settings()
-            await message.answer("enter time when you want to start training", reply_markup=kb)
-
-            await state.set_state(states.UserSetUp.time_start)
+        if kb_num == 2: # get start time
             state_data = await state.get_data()
-            
+            lang = state_data["user_lang"]
+
+            # check if every day has body part and reps
+            days: dict = state_data["days"]
+            for key, data in days.items():
+                day_name = texts.trans_days_of_week[lang][key] # get day_name on lang by its key
+
+                # for body part
+                if data["selected_part"] == None:
+                    answer = texts.set_body_part_answer[lang].format(day=day_name)
+                    await call.answer(answer)
+                    return
+                
+                # for reps
+                if data["reps"] == []:
+                    answer = texts.set_reps_answer[lang].format(day=day_name)
+                    await call.answer(answer)
+                    return
+
+            kb = kbs.get_back_to_days_settings(lang)
+            await message.answer(texts.workout_start_time[lang], reply_markup=kb, parse_mode="HTML")
+
             messages_to_delete = state_data.get("messages_to_delete", [])
             await delete_messages(bot, chat_id, messages_to_delete)
 
-    elif to != " ":
-        if to == "selected_days_list":
-            kb = kbs.get_selected_day(day)
+            # set and update state
+            await state.set_state(states.UserSetUp.time_start)
+            await state.update_data(
+                messages_to_delete=[]
+            )
+
+    elif to != " ": 
+        if to == "day_setting": # send selected daf, ex: body part, reps.  if back to selected days list
+            state_data = await state.get_data()
+            lang = state_data["user_lang"]
+
+            kb = kbs.get_selected_day(day, lang)
             await message.edit_text(kb[0], reply_markup=kb[1])
+
+            await state.set_state(states.UserSetUp.days)
+
+            try:
+                await bot.delete_message(
+                    chat_id=chat_id, message_id=state_data["message_title_to_delete"]
+                )
+            except Exception:
+                pass
+
+        if to == "day_reps_setting": # send reps setting buttons and added reps list 
+            state_data = await state.get_data()
+            lang = state_data["user_lang"]
+            day_data = state_data.get("days", {}).get(day, {})
+
+            text, kb = kbs.get_day_setting_by_name("reps", day, day_data, state_data, lang)
+            await message.edit_text(text, reply_markup=kb)
+
+            await state.set_state(states.UserSetUp.days)
+
+            try:
+                await bot.delete_message(
+                    chat_id=chat_id, message_id=state_data["message_title_to_delete"]
+                )
+            except Exception:
+                pass
 
 @router.callback_query(callback_filters.UserConfirmSetup.filter())
 async def confirm_setup(call: CallbackQuery, callback_data: callback_filters.UserConfirmSetup, state: FSMContext):
     message: Message = call.message
+    user_data = call.from_user
 
-    call_data = callback_data.data
-    if call_data == "confirm":
+    data = callback_data.data
+    if data == "confirm":
+        # get user data
+        user = await db.get_user(user_data.id)
+
         await state.clear()
 
+        # set and update state
         await state.set_state(states.UserSetUp.days)
-        kb = kbs.get_setup_start()
+        await state.update_data(
+            user_lang=user.lang,
+            all_body_parts=ALL_BODY_PARTS,
+            all_reps_names=ALL_REPS_NAMES,
+        )
+
+        # get kb and send message
+        kb = kbs.get_days_choice(lang=user.lang)
         await message.edit_text(
-            "choose days",
+            texts.choose_days_title[user.lang],
             reply_markup=kb
         )
-    elif call_data == "cancel":
-        await message.edit_text("You can always setup your trainings by command /trainings")
-        
+    elif data == "cancel":
+        user = await db.get_user(user_data.id)
+
+        await message.edit_text(texts.can_setup_trainigns[user.lang])
 
 @router.callback_query(callback_filters.UserChooseDay.filter())
 async def choose_day(call: CallbackQuery, callback_data: callback_filters.UserChooseDay, state: FSMContext):
     message: Message = call.message
+    user_data = call.from_user
+
     day = callback_data.day
 
-    days = (await state.get_data()).get("days", {})
+    state_data = await state.get_data()
+    lang = state_data["user_lang"]
+
+    # get and update selected days
+    days = state_data.get("days", {})
     if day not in days:
         days[day] = {
             "selected_part": None,
             "reps": [],
         }
     else:
+        if len(days) <= 1:
+            await call.answer(texts.at_least_one_day_answer)
+            return
+        
         del days[day]
 
-    new_kb = kbs.get_setup_start(selected_days=days)
+    # edit message
+    new_kb = kbs.get_days_choice(selected_days=days, lang=lang)
     await message.edit_reply_markup(reply_markup=new_kb)
 
+    # update state
     await state.update_data(
         days=days
     )
 
-
+# setting day, ex: body part, reps
 @router.callback_query(callback_filters.UserSettingDay.filter(F.setting != " "))
 async def setting_day_setting(call: CallbackQuery, callback_data: callback_filters.UserSettingDay, state: FSMContext):
     message = call.message
+    chat_id = message.chat.id
 
     day = callback_data.day
     setting = callback_data.setting
 
-    day_data = (await state.get_data()).get("days", {}).get(day, {})
+    state_data = await state.get_data()
+    lang = state_data["user_lang"]
 
-    text, kb = kbs.get_day_setting_by_name(setting, day, day_data)
+    day_data = state_data.get("days", {}).get(day, {})
+
+    text, kb = kbs.get_day_setting_by_name(setting, day, day_data, state_data, lang)
     await message.edit_text(text=text, reply_markup=kb)
 
+    await state.set_state(states.UserSetUp.days)
+
+    # delete message title
+    try:
+        await message.bot.delete_message(
+            chat_id=chat_id, message_id=state_data["message_title_to_delete"]
+        )
+    except Exception as ex:
+        pass 
+        
+
+# *body part
 @router.callback_query(callback_filters.UserSettingDay.filter(F.body_part != " "))
 async def setting_day_body_part(call: CallbackQuery, callback_data: callback_filters.UserSettingDay, state: FSMContext):
     message = call.message
+    chat_id = message.chat.id
 
     part = callback_data.body_part
     day = callback_data.day
 
+    state_data = await state.get_data()
+    lang = state_data["user_lang"]
+    
+    # get and update days 
+    days = state_data.get("days")
 
-    days = (await state.get_data()).get("days")
-
+    # answer enpty callback
     if days == None:
         await call.answer("")
         return
+    
+    if days[day]["selected_part"] == part:
+        await call.answer("")
+        return
+    
     day_data = days[day]
 
+
+    # update selected part
     days[day]["selected_part"] = part
-    await state.update_data(days=days)
 
-
-    text, kb = kbs.get_day_setting_by_name("workout_body_part", day, day_data)
+    # get kb and send message
+    text, kb = kbs.get_day_setting_by_name("workout_body_part", day, day_data, state_data, lang)
 
     await message.edit_text(text, reply_markup=kb)
 
-@router.callback_query(callback_filters.UserSettingDay.filter(F.reps_action != " "))
-async def setting_day_body_part(call: CallbackQuery, callback_data: callback_filters.UserSettingDay, state: FSMContext):
+    await state.set_state(states.UserSetUp.days)
+    # delete message title
+    try:
+        await message.bot.delete_message(
+            chat_id=chat_id, message_id=state_data["message_title_to_delete"]
+        )
+    except Exception as ex:
+        pass 
+        
+@router.callback_query(callback_filters.UserSettingDay.filter(F.add_custom_body_part)) # check if True
+async def setting_custom_body_part(call: CallbackQuery, callback_data: callback_filters.UserSettingDay, state: FSMContext):
     message = call.message
+    chat_id = message.chat.id
+
+
+    selected_day = callback_data.day
+
+    state_data = await state.get_data()
+    lang = state_data["user_lang"]
+
+    if state_data.get("days") == None:
+        await call.answer("")
+        return
+
+    msg = await message.answer(texts.new_body_part_name[lang])
+
+    # get and add message to delete
+    messages_to_delete: list = state_data["messages_to_delete"]
+    messages_to_delete.append(msg.message_id)
+
+    # set state
+    await state.set_state(states.UserSetUp.new_body_part)
+    
+    # update state 
+    await state.update_data(
+        selected_day=selected_day,
+        message_to_update=message.message_id,
+        message_title_to_delete=msg.message_id
+    )
+
+
+    # delete message title
+    try:
+        await message.bot.delete_message(
+            chat_id=chat_id, message_id=state_data["message_title_to_delete"]
+        )
+    except Exception as ex:
+        pass 
+        
+
+
+# *reps
+@router.callback_query(callback_filters.UserSettingDay.filter(F.reps_action != " "))
+async def setting_reps(call: CallbackQuery, callback_data: callback_filters.UserSettingDay, state: FSMContext):
+    message = call.message
+    chat_id = message.chat.id
+
 
     action = callback_data.reps_action
     day = callback_data.day
 
-    days = (await state.get_data()).get("days")
+    state_data = await state.get_data()
+    lang = state_data["user_lang"]
+
+    days = state_data.get("days")
 
     if days == None:
         await call.answer("")
@@ -167,8 +361,10 @@ async def setting_day_body_part(call: CallbackQuery, callback_data: callback_fil
     day_data = days[day]
     reps = day_data["reps"]
 
+    all_reps_names = state_data["all_reps_names"]
+
     if action == "add_rep":
-        text, kb = kbs.get_rep_name_setting(day)
+        text, kb = kbs.get_rep_name_setting(day, all_reps_names, lang)
         await message.edit_text(text, reply_markup=kb)
 
     else:
@@ -186,17 +382,31 @@ async def setting_day_body_part(call: CallbackQuery, callback_data: callback_fil
                 reps[-1]["minutes"] -= 1
             
         await state.update_data(days=days)
-        text, kb = kbs.get_day_setting_by_name("reps", day, day_data)
+        text, kb = kbs.get_day_setting_by_name("reps", day, day_data, state_data, lang)
         await message.edit_text(text, reply_markup=kb)
+
+    await state.set_state(states.UserSetUp.days)
+
+    # delete message title
+    try:
+        await message.bot.delete_message(
+            chat_id=chat_id, message_id=state_data["message_title_to_delete"]
+        )
+    except Exception as ex:
+        pass 
+        
 
 @router.callback_query(callback_filters.UserSettingDay.filter(F.rep_name != " "))
 async def setting_rep_name(call: CallbackQuery, callback_data: callback_filters.UserSettingDay, state: FSMContext):
     message = call.message
+    chat_id = message.chat.id
 
     day = callback_data.day
     rep_name = callback_data.rep_name
 
-    days = (await state.get_data()).get("days")
+    state_data = await state.get_data()
+    lang = state_data["user_lang"]
+    days = state_data.get("days")
 
     if days == None:
         await call.answer("")
@@ -215,21 +425,76 @@ async def setting_rep_name(call: CallbackQuery, callback_data: callback_filters.
             "seconds": 0
         }
     )  
+    await state.set_state(states.UserSetUp.days)
 
     await state.update_data(days=days)
-    text, kb = kbs.get_day_setting_by_name("reps", day, day_data)
+    text, kb = kbs.get_day_setting_by_name("reps", day, day_data, state_data, lang)
     await message.edit_text(text, reply_markup=kb)
 
+    # delete message title
+    try:
+        await message.bot.delete_message(
+            chat_id=chat_id, message_id=state_data["message_title_to_delete"]
+        )
+    except Exception as ex:
+        pass 
+
+@router.callback_query(callback_filters.UserSettingDay.filter(F.add_custom_rep_name)) # check if True
+async def setting_custom_rep_name(call: CallbackQuery, callback_data: callback_filters.UserSettingDay, state: FSMContext):
+    message = call.message
+    chat_id = message.chat.id
+
+    selected_day = callback_data.day
+
+    state_data = await state.get_data()
+    lang = state_data["user_lang"]
+
+    if state_data.get("days") == None:
+        await call.answer("")
+        return
+
+    msg = await message.answer(texts.new_rep_name[lang])
+
+    # get and add message to delete
+    messages_to_delete: list = state_data["messages_to_delete"]
+    messages_to_delete.append(msg.message_id)
+
+    # set state
+    await state.set_state(states.UserSetUp.new_rep_name)
+    
+    # update state 
+    await state.update_data(
+        selected_day=selected_day,
+        message_to_update=message.message_id,
+        message_title_to_delete=msg.message_id
+    )
+
+    # delete message title
+    try:
+        await message.bot.delete_message(
+            chat_id=chat_id, message_id=state_data["message_title_to_delete"]
+        )
+    except Exception as ex:
+        pass 
 
 # todo user edit trainig. I future i need to add this feature
 @router.callback_query(callback_filters.UserEditTrainingConfirm.filter())
 async def confirm_edit_training(call: CallbackQuery, callback_data: callback_filters.UserEditTrainingConfirm, state: FSMContext):
     message: Message = call.message
+    chat_id = message.chat.id
+
     user_data = call.from_user
+    user = await db.get_user(user_data.id)
+    if user == None:
+        call.answer()
+    
+    lang = user.lang
 
     call_data = callback_data.data
     if call_data == "confirm":
-        deleted = await db.delete_user_trainings(user_data.id)
+        text, kb, _ = await menu_kbs.get_user_menu("get_edit_trainings", user_data, lang=lang)
+
+        await message.edit_text(text, reply_markup=kb)
 
     elif call_data == "cancel":
         await message.delete()
