@@ -50,11 +50,12 @@ async def update_user(user_id, data, db_session=None) -> User:
         db_session = session_maker()
 
     async with db_session:
-        query = update(User).where(User.id == user_id).values(**data).options(joinedload(User.trainings), joinedload(User.finished_trainings)).returning(User)
-        data = await db_session.execute(query)
-        
+        query = update(User).where(User.id == user_id).values(**data)
+        await db_session.execute(query)
         await db_session.commit()
-        return data.fetchone()[0]
+
+        data = await db_session.get(User, user_id, options=(joinedload(User.trainings), joinedload(User.finished_trainings)))
+        return data
         
 async def delete_user(user_id, db_session=None):
     if db_session == None:
@@ -115,12 +116,16 @@ async def get_user_trainings(user_id, db_session=None) -> UserTrainings | None:
 async def udpate_user_trainings(user_id, data: dict, db_session=None) -> UserTrainings:
     if db_session == None:
         db_session = session_maker()
+
     async with db_session:
-        query = update(UserTrainings).where(UserTrainings.user_id == user_id).values(**data).returning(UserTrainings)
+        query = update(UserTrainings).where(UserTrainings.user_id == user_id).values(**data)
+        await db_session.execute(query)
+        await db_session.commit()
+
+        query = select(UserTrainings).where(UserTrainings.user_id == user_id)
         data = await db_session.execute(query)
         
-        await db_session.commit()
-        return data.fetchone()[0]
+        return data.unique().scalars().one()
         
 async def delete_user_trainings(user_id, db_session=None) -> bool:
     if db_session == None:

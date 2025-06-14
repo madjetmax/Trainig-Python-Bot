@@ -41,10 +41,10 @@ async def start_all_users_training_reminds(bot: Bot):
             create_training_remind(
                 bot, user.id, 
                 days_data, 
-                now.time().hour,
-                now.time().minute,
-                # trainings.time_start_hours, 
-                # trainings.time_start_minutes,
+                # now.time().hour,
+                # now.time().minute,
+                trainings.time_start_hours, 
+                trainings.time_start_minutes,
             )
     
 async def send_trainig_remind(bot: Bot, user_id: int):
@@ -73,7 +73,7 @@ def create_training_remind(bot: Bot, user_id, days: list, hours, minutes):
             day_of_week=", ".join(days), 
             hour=hours, 
             minute=minutes, 
-            second=now.time().second + 1,
+            second=SCHD_TRAINING_START_SECONDS,
             args=(bot, user_id), 
             id=job_id
         )

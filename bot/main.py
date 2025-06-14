@@ -13,9 +13,7 @@ from scheduler import user as user_scheduler
 # from aiogram.client.session.aiohttp import AiohttpSession
 # from aiogram.client.telegram import TelegramAPIServer
 
-# session = AiohttpSession(
-#     api=TelegramAPIServer.from_base('http://127.0.0.1:8000')
-# )
+# session = AiohttpSession(proxy="http://proxy.server:3128")
 
 bot = Bot(token=BOT_TOKEN) # session=session)
 dp = Dispatcher()

@@ -21,7 +21,7 @@ router = Router()
 async def start(message: Message):
     user_data = message.from_user
 
-    await db.delete_user(user_data.id)
+    # await db.delete_user(user_data.id)
 
     user = await db.get_user(user_data.id)
 
