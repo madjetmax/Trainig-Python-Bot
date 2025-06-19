@@ -3,7 +3,6 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column,  relationship
 from typing import List
 from config import * 
 from .datatypes import CustomJSON
-
 import datetime
 from zoneinfo import ZoneInfo
 
@@ -18,6 +17,8 @@ class Base(DeclarativeBase):
     created: Mapped[DateTime] = mapped_column(DateTime(True), default=now())
     updated: Mapped[DateTime] = mapped_column(DateTime(True), default=now(), onupdate=now())
     
+
+# *user
 class User(Base):
     __tablename__ = "user"
 
@@ -27,10 +28,12 @@ class User(Base):
 
     lang: Mapped[str] = mapped_column(String(2), nullable=True, default="en")
 
+    # relations
     trainings: Mapped["UserTrainings"] = relationship(back_populates="user", cascade="all, delete-orphan", passive_deletes=True)
     finished_trainings: Mapped[List["FinishedUserTraining"]] = relationship(back_populates="user", cascade="all, delete-orphan", passive_deletes=True)
+    admin_chatting: Mapped[List["AdminChatting"]] = relationship(back_populates="user", cascade="all, delete-orphan", passive_deletes=True)
 
-    aura: Mapped[int] = mapped_column(Integer, default=0)
+    aura: Mapped[float] = mapped_column(Float, default=0)
 
     def __str__(self):
         data = f"{self.id}, {self.name}, {self.status}, {self.aura}"
@@ -74,3 +77,18 @@ class FinishedUserTraining(Base):
     time_end: Mapped[DateTime] = mapped_column(DateTime(True))
 
     aura_got: Mapped[int] = mapped_column(Integer)
+
+# TODO bot and admin
+class AdminChatting(Base):
+    __tablename__ = "admin_chatting"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+
+    # for related user
+    user_id: Mapped[int] = mapped_column(ForeignKey("user.id", ondelete="CASCADE"))
+    user: Mapped["User"] = relationship(back_populates="admin_chatting")
+
+    # data
+    message: Mapped[str] = mapped_column(Text)
+    photo_path: Mapped[str] = mapped_column(String(200), nullable=True) # user can send photo
+    

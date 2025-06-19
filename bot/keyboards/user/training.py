@@ -1,32 +1,32 @@
-from copy import deepcopy
 import datetime
 from zoneinfo import ZoneInfo
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-from typing import Generator, Any
 
 from config import *
 
-import database as db
 from .. import callback_filters
 from texts import user as user_texts
 
 
 # *user training
-def get_start_training(lang) -> InlineKeyboardMarkup:
-    confirm_data = callback_filters.UserStartTraining(data="start").pack()
-    cancel_data = callback_filters.UserStartTraining(data="not_today").pack()
+def get_start_training(lang, can_cancel=True) -> InlineKeyboardMarkup:
+    kb = InlineKeyboardBuilder()
 
     # start training buttons
     text1 = user_texts.start_training_confirm_btn[lang]
-    text2 = user_texts.not_today_btn[lang]
+    confirm_data = callback_filters.UserStartTraining(data="start").pack()
+    kb.row(
+        InlineKeyboardButton(text=text1, callback_data=confirm_data)
+    )
 
-    kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=text1, callback_data=confirm_data)],
-        [InlineKeyboardButton(text=text2, callback_data=cancel_data)],
-    ])
-
-    return kb
+    if can_cancel:
+        text2 = user_texts.not_today_btn[lang]
+        cancel_data = callback_filters.UserStartTraining(data="not_today").pack()
+        kb.row(
+            InlineKeyboardButton(text=text2, callback_data=cancel_data)
+        )
+    return kb.as_markup()
 
 def get_break(lang) -> InlineKeyboardMarkup:
     calldata = callback_filters.UserNavigateTrainingStates(data="break").pack()
@@ -103,6 +103,12 @@ def get_training_control(state_data: dict, lang) -> tuple[str, InlineKeyboardMar
     # getting body_part
     body_part = state_data["full_training_data"]["selected_part"]
 
+    # find body part on user lang in state_data
+    for body_part1 in state_data["user_body_parts_names"]:
+        if body_part1["name"] == body_part:
+            body_part = body_part1[lang]
+            break
+
     text = user_texts.training_status[lang].format(
         body_part=body_part,
         clear_training_time=clear_training_time,
@@ -110,7 +116,6 @@ def get_training_control(state_data: dict, lang) -> tuple[str, InlineKeyboardMar
         reps_finished=reps_finished,
         reps_left=reps_left,
     )
-    
     return text, kb
 
 # finish and pause confirm

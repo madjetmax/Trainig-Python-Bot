@@ -14,7 +14,11 @@ from keyboards.user import training as kbs
 from texts import user as texts
 import database as db
 from database.models import User, FinishedUserTraining, UserTrainings
-from training_timer import Timer
+from training_timer import Timer, timers
+
+# aura
+from utils.user_aura import get_aura
+
 
 router = Router()
 
@@ -24,13 +28,12 @@ async def delete_messages(bot: Bot, chat_id, messages):
 
 
 # *user training and work with timer
-async def on_timer_update(timer: Timer, state: FSMContext):
+async def on_timer_update(bot: Bot, chat_id, timer: Timer, state: FSMContext):
     state_data = await state.get_data()
-
 
     lang = state_data["user_lang"]
 
-    message: Message = state_data["message"]
+    message_id: int = state_data["message"]
     
     minutes, seconds = timer.get_clear_time()
 
@@ -43,16 +46,24 @@ async def on_timer_update(timer: Timer, state: FSMContext):
         text = texts.warmup_timer_title[lang].format(minutes=minutes, seconds=seconds)
     
     kb = kbs.get_break_controll(lang)
-    
-    await message.edit_text(text, reply_markup=kb)
+
+    # update message
+    await bot.edit_message_text(
+        text, chat_id=chat_id, message_id=message_id,
+        reply_markup=kb
+    )
 
 
-async def on_timer_end(timer: Timer, state: FSMContext):
+async def on_timer_end(bot: Bot, chat_id: int ,timer: Timer, state: FSMContext):
     state_data = await state.get_data()
     user_data = state_data["user_data"]
-    message: Message = state_data["message"]
 
-    await message.delete()
+    message_id: int = state_data["message"]
+
+    # delet message with bot
+    await bot.delete_message(
+        chat_id, message_id
+    )
 
     # get and update prep ind
     current_rep_ind = state_data.get("current_rep_ind")
@@ -78,18 +89,25 @@ async def on_timer_end(timer: Timer, state: FSMContext):
             # send rep 
             kb = kbs.get_break(lang)
             text = texts.rep_title[lang].format(name=rep_name)
-            msg = await message.answer(text, reply_markup=kb) # send new message to notify user
+            # send message and set new in state
+            msg = await bot.send_message(
+                chat_id, text, reply_markup=kb
+            ) # send new message to notify user
+            # msg = await message.answer(text, reply_markup=kb)
 
             current_rep_ind += 1
 
             # update state
             await state.update_data(
-                message=msg,
+                message=msg.message_id,
                 current_rep_ind=current_rep_ind,
                 training_state=f"rep_{rep_name}",
             )
     else:
-        await message.answer("training finished!")
+        await bot.send_message(
+            chat_id, texts.training_finished[lang]
+        ) 
+        # await message.answer(texts.training_finished[lang])
 
         # getting end time
         tz = ZoneInfo(DATETIME_TIME_ZONE)
@@ -101,31 +119,48 @@ async def on_timer_end(timer: Timer, state: FSMContext):
         )
 
         # get text
-        text = get_finished_training_result(state_data, lang)
+        text, aura_got = get_finished_training_result(state_data, lang)
 
-        await message.answer(text)
+        await bot.send_message(
+            chat_id, text
+        ) 
 
         # adding to datebase
         await db.create_user_fihished_trainig(user_data.id, data=state_data)
+        # getting and update user aura
+        user = await db.get_user(user_data.id)
+        aura: float = user.aura
+
+        await db.update_user(user_data.id, {
+            "aura": aura + aura_got
+        })
 
         await state.clear()
 
         # gettin and stopping timer
-        timer: Timer = state_data["timer"]
+        timer: Timer = timers[state_data["timer"]]
         if timer.on_run:
             await timer.stop()
             timer.time = 0
             timer.max_time = 0
-
-
+        
+        # delete timer object
+        del timers[user_data.id]
 
 @router.callback_query(callback_filters.UserStartTraining.filter())
 async def confirm_start_training(call: CallbackQuery, callback_data: callback_filters.UserStartTraining, state: FSMContext):
     message: Message = call.message
+    bot: Bot = message.bot
+    chat_id = message.chat.id
     user_data = call.from_user
     call_data = callback_data.data
 
     if call_data == "start":
+        # setting up timer and state_data
+        state_data = await state.get_data()
+        if state_data.get("timer"): # check if user on training
+            return
+        
         # set warmup on the very start of training
         await state.clear()
         await state.set_state(states.UserTraining)
@@ -133,6 +168,7 @@ async def confirm_start_training(call: CallbackQuery, callback_data: callback_fi
         warmup_time = 10 # 5 minutes. set this value in seconds
 
         training_timer = Timer(user_data.id, warmup_time)
+        timers[user_data.id] = training_timer
 
         tz = ZoneInfo(DATETIME_TIME_ZONE)
         now = datetime.datetime.now(tz)
@@ -148,40 +184,54 @@ async def confirm_start_training(call: CallbackQuery, callback_data: callback_fi
             return
         training_data = user_trainings_data.days_data[day_name]
 
-        # counting reps count filtering list if reps
+        # counting reps count filtering list if reps are not breaks
         all_reps_count = len([rep for rep in training_data["reps"] if rep["name"] != "break"]) 
+        
 
+        # setting state data
         await state.update_data(
             user_data=user_data,
+            # training data
             full_training_data=training_data,
             user_reps_names=user.trainings.all_reps_names,
             user_body_parts_names=user.trainings.all_body_parts,
-            timer=training_timer,
-            training_state="warmup",
+            # timer and time
+            timer=user_data.id,
             time_start=now,
+            # state
+            training_state="warmup",
+            # reps
             current_rep_ind=0,
             all_reps_count=all_reps_count,
             reps_finished=0,
-            message=message,
+            # message id
+            message=message.message_id,
+            # other state and lang
             stopped=False,
             pauses=[],
             user_lang=user.lang
         )
+
+
         minutes, seconds = training_timer.get_clear_time()
 
+        # get text and kb
         text = texts.warmup_timer_title[user.lang].format(minutes=minutes, seconds=seconds)
         kb = kbs.get_break_controll(user.lang)
-        msg = await message.edit_text(text, reply_markup=kb)       
-        training_timer.message = msg
+
+        # delete and send new message
+        await message.edit_text(text, reply_markup=kb)       
 
         # setting timer update and end functions that will be call on these events
         training_timer.on_update_funk = on_timer_update
-        training_timer.on_update_funk_args = (training_timer, state)
+        training_timer.on_update_funk_args = (message.bot, chat_id, training_timer, state)
 
         training_timer.on_end_funk = on_timer_end
-        training_timer.on_end_funk_args = (training_timer, state)
+        training_timer.on_end_funk_args = (message.bot, chat_id, training_timer, state)
 
         await training_timer.start()
+
+        
 
     elif call_data == "not_today": # todo reduce user aura hahahaahahhhahahha (evil laugh)
         await call.answer("poganyu😭😟😟😟🙍🏿🙍🏿🙍🏿🙍🏿🙍🏿")
@@ -191,6 +241,8 @@ async def confirm_start_training(call: CallbackQuery, callback_data: callback_fi
 async def navigate_training_states(call: CallbackQuery, callback_data: callback_filters.UserNavigateTrainingStates, state: FSMContext):
     message: Message = call.message
     user_data = call.from_user
+    chat_id = message.chat.id
+
     navigate_data = callback_data.data
     state_data = await state.get_data()
 
@@ -211,7 +263,7 @@ async def navigate_training_states(call: CallbackQuery, callback_data: callback_
         reps_finished = state_data["reps_finished"]
         reps_finished += 1
 
-        message: Message = state_data["message"]
+        message_id: Message = state_data["message"]
 
         # get and update prep ind
         current_rep_ind = state_data.get("current_rep_ind")
@@ -225,7 +277,7 @@ async def navigate_training_states(call: CallbackQuery, callback_data: callback_
 
             if rep_name == "break":
                 # send break 
-                training_timer: Timer = state_data["timer"]
+                training_timer: Timer = timers[state_data["timer"]]
 
                 # set time from break data
                 training_timer.max_time = rep_data["minutes"] * 60 + rep_data["seconds"]
@@ -237,7 +289,13 @@ async def navigate_training_states(call: CallbackQuery, callback_data: callback_
                 # send message
                 text = texts.break_timer_title[lang].format(minutes=minutes, seconds=seconds)
                 kb = kbs.get_break_controll(lang)
-                await message.edit_text(text, reply_markup=kb)
+
+                # update message
+                await message.bot.edit_message_text(
+                    text, chat_id=chat_id, message_id=message_id,
+                    reply_markup=kb
+                )
+                # await message.edit_text(text, reply_markup=kb)
                 current_rep_ind += 1
 
                 # update state
@@ -248,11 +306,10 @@ async def navigate_training_states(call: CallbackQuery, callback_data: callback_
                 )
 
                 await training_timer.start()
-        else:
-            await message.answer("training finished!")
-
-            # gettin and stopping timer
-            timer: Timer = state_data["timer"]
+        else: # finish training
+            await message.answer(texts.training_finished[lang])
+            # getting and stopping timer
+            timer: Timer = timers[state_data["timer"]]
             if timer.on_run:
                 await timer.stop()
                 timer.time = 0
@@ -267,13 +324,22 @@ async def navigate_training_states(call: CallbackQuery, callback_data: callback_
                 time_end=now,
             )
             # get text
-            text = get_finished_training_result(state_data)
+            text, aura_got = get_finished_training_result(state_data)
 
             await message.answer(text)
 
             # adding to datebase
             await db.create_user_fihished_trainig(user_data.id, data=state_data)
+            
+            # getting and update user aura
+            user = await db.get_user(user_data.id)
+            aura: float = user.aura
 
+            await db.update_user(user_data.id, {
+                "aura": aura + aura_got
+            })
+            # delete timer object
+            del timers[user_data.id]
             await state.clear()
 
 # controll break and warmup timer, add 30 seconds
@@ -286,8 +352,9 @@ async def break_timer_controll(call: CallbackQuery, callback_data: callback_filt
 
     state_data = await state.get_data()
 
-    timer: Timer | None = state_data.get("timer")
-    if timer:
+    timer_id: int | None = state_data.get("timer")
+    if timer_id:
+        timer = timers[timer_id]
         if action == "add_30_seconds":
             timer.time += 30
             timer.max_time += 30
@@ -311,7 +378,7 @@ def get_clear_time(hours, minutes, seconds):
 
     return f"{hours}:{minutes}.{seconds}"
 
-def get_finished_training_result(state_data: dict, lang):
+def get_finished_training_result(state_data: dict, lang) -> tuple[str, float]:
     """Takes :code:`state_data` to get data from it, returns text as :class:`str`"""
     time_start: datetime = state_data["time_start"]
     time_end: datetime = state_data["time_end"]
@@ -354,7 +421,7 @@ def get_finished_training_result(state_data: dict, lang):
             body_part = part[lang]
             break
 
-    aura_got = 10 / (all_reps - reps_finished + 1) * (all_reps / 10) # aura based on finished and all reps count. PS maybe I will change it
+    aura_got = get_aura(all_reps, reps_finished) # aura based on finished and all reps count. PS maybe I will change it
 
     text = texts.finished_training_result[lang].format(
         body_part=body_part,
@@ -366,7 +433,45 @@ def get_finished_training_result(state_data: dict, lang):
         aura_got=aura_got,
     )
 
-    return text
+    return text, aura_got
+
+async def send_rep(message: Message, state_data, lang) -> Message:
+    """to send new rep message if rep is not break or warmup. Returns message as new message to update in state"""
+    # all reps 
+    training_data = state_data.get("full_training_data")
+
+    if state_data["stopped"]:
+        return
+
+    # get and update prep ind
+
+    current_training_state = state_data["training_state"]
+    if current_training_state in ("break", "warmup"): # check if rep is not break or warmup
+        return
+    
+    current_rep_ind = state_data.get("current_rep_ind")
+    
+    # get rep data on ind
+    all_reps = training_data["reps"]
+
+    rep_data = all_reps[current_rep_ind-1]
+    rep_name = rep_data["name"]
+
+    
+    kb = kbs.get_break(lang)
+    # find rep name on user lang in state_data
+    for rep in state_data["user_reps_names"]:
+        if rep["name"] == rep_name:
+            rep_name = rep[lang]
+            break
+
+    text = texts.rep_title[lang].format(
+        name=rep_name
+    )
+
+    msg = await message.answer(text, reply_markup=kb)
+    print(1)
+    return msg
 
 # control training. pause finish or back (delete message)
 @router.callback_query(callback_filters.UserControlTraining.filter())
@@ -383,8 +488,6 @@ async def controll_training_status(call: CallbackQuery, callback_data: callback_
     lang = user.lang
 
     if state_data.get("full_training_data"): # check if current state in UserTraining and not other
-        
-
         if action == "back":
             await message.delete()
 
@@ -403,7 +506,7 @@ async def controll_training_status(call: CallbackQuery, callback_data: callback_
             await message.edit_text(text, reply_markup=kb)
 
         if action == "resume":
-            timer: Timer = state_data["timer"]
+            timer: Timer = timers[state_data["timer"]]
             if not timer.on_run:
                 if state_data["training_state"] in ["break", "warmup"]: # checking if training state is not rep, to avid bags and messages deletings
                     await timer.start()
@@ -411,10 +514,19 @@ async def controll_training_status(call: CallbackQuery, callback_data: callback_
             state_data = await state.update_data(stopped=False)
             text, kb = kbs.get_training_control(state_data, lang)
             await message.edit_text(text, reply_markup=kb)
-        
+
+            # send new rep message 
+            msg = await send_rep(message, state_data, lang)
+
+            if msg:
+                # udpate_data
+                await state.update_data(
+                    message=msg.message_id
+                )
+
         if action == "confirm_finish":
             # gettin and stopping timer
-            timer: Timer = state_data["timer"]
+            timer: Timer = timers[state_data["timer"]]
             if timer.on_run:
                 await timer.stop()
                 timer.time = 0
@@ -428,18 +540,27 @@ async def controll_training_status(call: CallbackQuery, callback_data: callback_
                 stopped=True,
                 time_end=now,
             )
-            # get text
-            text = get_finished_training_result(state_data, lang)
+            # get text and aura
+            text, aura_got = get_finished_training_result(state_data, lang)
 
             await message.edit_text(text)
 
             # adding to datebase
             await db.create_user_fihished_trainig(user_data.id, data=state_data)
 
+            # get and update user aura
+            user = await db.get_user(user_data.id)
+            aura: float = user.aura
+
+            await db.update_user(user_data.id, {
+                "aura": aura + aura_got
+            })
+            # delete timer object
+            del timers[user_data.id]
             await state.clear()
 
         if action == "confirm_pause":
-            timer: Timer = state_data["timer"]
+            timer: Timer = timers[state_data["timer"]]
             if timer.on_run:
                 await timer.stop()
                 timer.time = 0
@@ -456,7 +577,7 @@ async def controll_training_status(call: CallbackQuery, callback_data: callback_
 
 # *user view finished trainings
 # get text from data from database
-def get_training_result(f_t: FinishedUserTraining, lang, user_all_body_parts) -> str:
+def get_training_result(f_t: FinishedUserTraining, lang, user_all_body_parts) -> tuple[str, float]:
     """Takes :code:`f_t` to get data from it, returns text as :class:`str`"""
     time_start: datetime = f_t.time_start
     time_end: datetime = f_t.time_end
@@ -478,8 +599,6 @@ def get_training_result(f_t: FinishedUserTraining, lang, user_all_body_parts) ->
     clear_time_end = get_clear_time(end_hours, end_minutes, end_seconds)
 
     # calculatin training time
-    
-    
     training_hours = f_t.full_training_time.split(":")[0]
     training_minutes = f_t.full_training_time.split(":")[1].split(".")[0]
     training_seconds = f_t.full_training_time.split(":")[1].split(".")[1]
@@ -499,7 +618,7 @@ def get_training_result(f_t: FinishedUserTraining, lang, user_all_body_parts) ->
             body_part = part[lang]
             break
 
-    aura_got = 10 / (all_reps - reps_finished + 1) * (all_reps / 10) # aura based on finished and all reps count. PS maybe I will change it
+    aura_got = get_aura(all_reps, reps_finished) # aura based on finished and all reps count. PS maybe I will change it
 
     text = texts.finished_training_text[lang].format(
         id=f_t.id,
@@ -513,8 +632,13 @@ def get_training_result(f_t: FinishedUserTraining, lang, user_all_body_parts) ->
         aura_got=aura_got,
     )
 
+    return text, aura_got
 
-    return text
+def sort_finished_trainings(x: FinishedUserTraining) -> int:
+    # getting seconds from datetime to sort
+    seconds = x.time_start.timestamp()
+    return -seconds
+
 @router.callback_query(callback_filters.UserAddMoreFT.filter())
 async def add_more_ft(call: CallbackQuery, callback_data: callback_filters.UserAddMoreFT):
     message: Message = call.message
@@ -526,15 +650,20 @@ async def add_more_ft(call: CallbackQuery, callback_data: callback_filters.UserA
     user = await db.get_user(user_data.id)
 
     if user:
-        finished_trainings = user.finished_trainings[start:start+offset]
+        # sort trainins by date
+        finished_trainings = sorted(user.finished_trainings[start:start+offset] , key=sort_finished_trainings)
+
         global_i = start
         for i, f_t in enumerate(finished_trainings):
             kb = None
+            # add keyboard if message is last and not the last in list
             if i + 1 == len(finished_trainings) and global_i + 1 < len(user.finished_trainings):
                 kb = await kbs.get_add_more_f_t(start+offset, offset, user.lang, user.trainings.all_body_parts)
+            # send messsage
             text = get_training_result(f_t, user.lang)
             await message.answer(text, reply_markup=kb)
+
+            # count global_i for checking last f_t in list
             global_i += 1
 
         await message.edit_reply_markup(reply_markup=None)
-

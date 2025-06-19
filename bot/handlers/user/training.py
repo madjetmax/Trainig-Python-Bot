@@ -14,12 +14,12 @@ from scheduler import user as schedule_manager
 
 from texts import user as texts
 from states import user as states
-from training_timer import Timer
+from training_timer import Timer, timers
 
 router = Router()
 
 
-# *training
+# *handlers while training
 
 # get training data: status, time, etc
 @router.message(Command("training_status"))
@@ -68,7 +68,7 @@ async def get_current_rep(message: Message, state: FSMContext):
 
     # checking what to send based on current training state
     if current_training_state == "break":
-        timer: Timer = state_data["timer"]        
+        timer: Timer = timers[state_data["timer"]]        
         minutes, seconds = timer.get_clear_time()
 
         # get kb and text, send message 
@@ -80,11 +80,11 @@ async def get_current_rep(message: Message, state: FSMContext):
         msg = await message.answer(text, reply_markup=kb)
 
         await state.update_data(
-            message=msg # setting new message for udpdate and delete
+            message=msg.message_id # setting new message for udpdate and delete
         )
 
     elif current_training_state == "warmup":
-        timer: Timer = state_data["timer"]        
+        timer: Timer = timers[state_data["timer"]]        
         minutes, seconds = timer.get_clear_time()
 
         # get kb and text, send message 
@@ -97,13 +97,11 @@ async def get_current_rep(message: Message, state: FSMContext):
 
         # update state
         await state.update_data(
-            message=msg # setting new message for udpdate and delete
+            message=msg.message_id # setting new message for udpdate and delete
         )
 
     else:
         kb = kbs.get_break(lang)
-
-        rep_name = rep_name["name"]
         # find rep name on user lang in state_data
         for rep in state_data["user_reps_names"]:
             if rep["name"] == rep_name:
@@ -117,7 +115,7 @@ async def get_current_rep(message: Message, state: FSMContext):
 
         # update state
         await state.update_data(
-            message=msg, # setting new message for udpdate and delete
+            message=msg.message_id # setting new message for udpdate and delete
         )
 # get user reps in current training
 def get_all_reps_text(state_data: dict, lang) -> str:
@@ -250,7 +248,12 @@ def get_training_result(f_t: FinishedUserTraining, lang, user_all_body_parts) ->
 
     return text
 
-# get list of user funished trainings
+def sort_finished_trainings(x: FinishedUserTraining) -> int:
+    # getting seconds from datetime to sort
+    seconds = x.time_start.timestamp()
+    return -seconds
+
+# *get list of user funished trainings
 @router.message(Command(commands=["f_t"])) # todo test command
 async def get_finished_trainings(message: Message):
     user_data = message.from_user
@@ -259,11 +262,51 @@ async def get_finished_trainings(message: Message):
 
     if user:
         offset = 5
-        finished_trainings = user.finished_trainings[:offset]
+        
+        # sort trainins by date
+        finished_trainings = sorted(user.finished_trainings[:offset], key=sort_finished_trainings)
         for i, f_t in enumerate(finished_trainings):
             kb = None
+            # add keyboard if message is the last
             if i + 1 == len(finished_trainings) and i + 1 < len(user.finished_trainings):
                 start = offset
-                kb = await kbs.get_add_more_f_t(start, offset)
+                kb = await kbs.get_add_more_f_t(start, offset, user.lang)
+            # send message
             text = get_training_result(f_t, user.lang, user.trainings.all_body_parts)
             await message.answer(text, reply_markup=kb)
+
+# *start training
+def check_training_is_done_today(user: User) -> bool:
+    tz = ZoneInfo(DATETIME_TIME_ZONE)
+    today = datetime.datetime.now(tz)
+    today_date = today.date()
+
+    finished_trainings = user.finished_trainings
+
+    for f_t in finished_trainings:
+        f_t_date = f_t.time_start.date()
+        # check if dates are the same
+        if f_t_date == today_date:
+            return True
+    return False
+
+@router.message(Command("start_training"))
+async def start_training(message: Message, state: FSMContext):
+    user_data = message.from_user
+    chat_id = message.chat.id
+    state_data = await state.get_data()
+
+    user = await db.get_user(user_data.id)
+    lang = user.lang
+
+    if state_data.get("timer"): # check if user on training
+        return 
+
+    done = check_training_is_done_today(user)
+
+    text = "start training?"
+    if done:
+        text = "you already trained today, start again?"
+
+    kb = kbs.get_start_training(lang, False)
+    await message.answer(text, reply_markup=kb)

@@ -13,22 +13,29 @@ from scheduler import user as user_scheduler
 from aiogram.client.session.aiohttp import AiohttpSession
 
 session = AiohttpSession(proxy="http://proxy.server:3128")
-
 bot = Bot(token=BOT_TOKEN, session=session)
+
+
+# bot = Bot(token=BOT_TOKEN)#, session=session)
 dp = Dispatcher()
 
-dp.include_routers(
+dp.include_routers( 
     handlers.router,
     callbacks.router,
 )
 
-async def main():
-    # db
+
+# start funcs
+async def start_scheduler():
+    scheduler.scheduler.start()
+    await user_scheduler.start_all_users_training_reminds(bot, dp)
+
+async def start_db():
     await database.engine.create_db()
 
-    # scheduler
-    scheduler.scheduler.start()
-    await user_scheduler.start_all_users_training_reminds(bot)
+async def main():
+    await start_db()
+    await start_scheduler()    
 
     # start bot polling
     print('bot launched')

@@ -1,3 +1,4 @@
+from copy import deepcopy
 from aiogram import Router, F, Bot
 from aiogram.types import CallbackQuery, Message
 
@@ -179,6 +180,7 @@ async def confirm_setup(call: CallbackQuery, callback_data: callback_filters.Use
             user_lang=user.lang,
             all_body_parts=ALL_BODY_PARTS,
             all_reps_names=ALL_REPS_NAMES,
+            days={}
         )
 
         # get kb and send message
@@ -200,29 +202,37 @@ async def choose_day(call: CallbackQuery, callback_data: callback_filters.UserCh
     day = callback_data.day
 
     state_data = await state.get_data()
-    lang = state_data["user_lang"]
 
     # get and update selected days
-    days = state_data.get("days", {})
-    if day not in days:
-        days[day] = {
+    selected_days = state_data.get("days")
+
+    if selected_days is None:
+        await call.answer()
+        return
+    lang = state_data["user_lang"]
+    
+    if day not in selected_days:
+        selected_days[day] = {
             "selected_part": None,
             "reps": [],
         }
     else:
-        if len(days) <= 1:
+        if len(selected_days) <= 1:
             await call.answer(texts.at_least_one_day_answer)
             return
         
-        del days[day]
+        del selected_days[day]
+
+    # sorting days by number of day in WEEK_DAYS_SORT
+    selected_days = {k: d for k, d in sorted(selected_days.items(), key=lambda x: WEEK_DAYS_SORT[x[0]])}
 
     # edit message
-    new_kb = kbs.get_days_choice(selected_days=days, lang=lang)
+    new_kb = kbs.get_days_choice(selected_days=selected_days, lang=lang)
     await message.edit_reply_markup(reply_markup=new_kb)
 
     # update state
     await state.update_data(
-        days=days
+        days=selected_days
     )
 
 # setting day, ex: body part, reps
@@ -235,9 +245,15 @@ async def setting_day_setting(call: CallbackQuery, callback_data: callback_filte
     setting = callback_data.setting
 
     state_data = await state.get_data()
+
+    days = state_data.get("days")
+
+    if days is None:
+        await call.answer()
+        return
     lang = state_data["user_lang"]
 
-    day_data = state_data.get("days", {}).get(day, {})
+    day_data = days.get(day, {})
 
     text, kb = kbs.get_day_setting_by_name(setting, day, day_data, state_data, lang)
     await message.edit_text(text=text, reply_markup=kb)
@@ -254,6 +270,55 @@ async def setting_day_setting(call: CallbackQuery, callback_data: callback_filte
         
 
 # *body part
+# to set body_part for all days
+@router.callback_query(callback_filters.UserSettingDay.filter(F.use_body_part_for_all_days)) # check if True
+async def set_body_part_for_all_days(call: CallbackQuery, callback_data: callback_filters.UserSettingDay, state: FSMContext):
+    message = call.message
+    chat_id = message.chat.id
+
+    selected_day = callback_data.day
+    part = callback_data.body_part
+
+    state_data = await state.get_data()
+    lang = state_data["user_lang"]
+
+    if part != " ":
+        # send confirm
+        text, kb = kbs.get_confirm_use_body_part_for_all_days(selected_day, part, lang)
+        await message.edit_text(text, reply_markup=kb)
+    await call.answer()
+
+# confirm
+@router.callback_query(callback_filters.UserSettingDay.filter(F.confirm_use_body_part_for_all_days != " ")) 
+async def confirm_body_part_for_all_days(call: CallbackQuery, callback_data: callback_filters.UserSettingDay, state: FSMContext):
+    message = call.message
+    chat_id = message.chat.id
+
+    selected_day = callback_data.day
+    part = callback_data.body_part
+    confirm = callback_data.confirm_use_body_part_for_all_days
+
+
+    state_data = await state.get_data()
+    lang = state_data["user_lang"]
+    days: dict = state_data["days"]
+
+    # "1" = True, "0" = False
+    if confirm == "1": # check if confirm 
+        # setting for all days
+        for day in days.keys():
+            days[day]["selected_part"] = part
+
+        await state.update_data(
+            days=days
+        )
+
+    text, kb = kbs.get_day_setting_by_name("workout_body_part", selected_day, days[selected_day], state_data, lang)
+
+    await message.edit_text(text, reply_markup=kb)
+
+
+# *set body part for day
 @router.callback_query(callback_filters.UserSettingDay.filter(F.body_part != " "))
 async def setting_day_body_part(call: CallbackQuery, callback_data: callback_filters.UserSettingDay, state: FSMContext):
     message = call.message
@@ -279,7 +344,6 @@ async def setting_day_body_part(call: CallbackQuery, callback_data: callback_fil
     
     day_data = days[day]
 
-
     # update selected part
     days[day]["selected_part"] = part
 
@@ -304,6 +368,7 @@ async def setting_custom_body_part(call: CallbackQuery, callback_data: callback_
 
 
     selected_day = callback_data.day
+    part = callback_data.body_part
 
     state_data = await state.get_data()
     lang = state_data["user_lang"]
@@ -336,10 +401,41 @@ async def setting_custom_body_part(call: CallbackQuery, callback_data: callback_
         )
     except Exception as ex:
         pass 
-        
+
 
 
 # *reps
+# confirm
+@router.callback_query(callback_filters.UserSettingDay.filter(F.confirm_use_reps_for_all_days != " ")) 
+async def confirm_reps_for_all_days(call: CallbackQuery, callback_data: callback_filters.UserSettingDay, state: FSMContext):
+    message = call.message
+    chat_id = message.chat.id
+
+    selected_day = callback_data.day
+    part = callback_data.body_part
+    confirm = callback_data.confirm_use_reps_for_all_days
+
+    state_data = await state.get_data()
+    lang = state_data["user_lang"]
+
+    # getting days and their data
+    days: dict = state_data["days"]
+    reps = days[selected_day]["reps"]
+
+    # "1" = True, "0" = False
+    if confirm == "1": # check if confirm 
+        # setting for all days
+        for day in days.keys():
+            days[day]["reps"] = reps
+
+        await state.update_data(
+            days=days
+        )
+
+    # edit message
+    text, kb = kbs.get_day_setting_by_name("reps", selected_day, days[selected_day], state_data, lang)
+    await message.edit_text(text, reply_markup=kb)
+
 @router.callback_query(callback_filters.UserSettingDay.filter(F.reps_action != " "))
 async def setting_reps(call: CallbackQuery, callback_data: callback_filters.UserSettingDay, state: FSMContext):
     message = call.message
@@ -380,7 +476,21 @@ async def setting_reps(call: CallbackQuery, callback_data: callback_filters.User
         if action == "remove_1m_to_last_break":
             if reps[-1]["name"] == "break":
                 reps[-1]["minutes"] -= 1
-            
+                reps[-1]["minutes"] = max(0, reps[-1]["minutes"])
+
+        if action == "copy_last_rep":
+            last_rep = deepcopy(reps[-2])
+            last_break = deepcopy(reps[-1])
+
+            reps.append(last_rep)
+            reps.append(last_break)
+        
+        if action == "user_for_all_days":
+            # send confirm message
+            text, kb = kbs.get_confirm_use_reps_for_all_days(day, lang)
+            await message.edit_text(text, reply_markup=kb)
+            return
+                    
         await state.update_data(days=days)
         text, kb = kbs.get_day_setting_by_name("reps", day, day_data, state_data, lang)
         await message.edit_text(text, reply_markup=kb)

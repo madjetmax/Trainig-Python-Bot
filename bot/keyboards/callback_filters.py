@@ -1,5 +1,6 @@
 from aiogram.filters.callback_data import CallbackData
 
+# *user
 # *training setup
 class UserChooseLang(CallbackData, prefix="user_choose_lang"):
     lang: str
@@ -17,6 +18,12 @@ class UserSettingDay(CallbackData, prefix="user_setting_day"):
     
     add_custom_body_part: bool = False
     add_custom_rep_name: bool = False
+
+    use_body_part_for_all_days: bool = False
+    confirm_use_body_part_for_all_days: str = " "
+
+    use_reps_for_all_days: bool = False
+    confirm_use_reps_for_all_days: str = " "
 
     reps_action: str = " "
     rep_name: str = " "
@@ -50,6 +57,12 @@ class UserEditDay(CallbackData, prefix="user_edit_day"):
     add_custom_body_part: bool = False
     add_custom_rep_name: bool = False
 
+    use_body_part_for_all_days: bool = False
+    confirm_use_body_part_for_all_days: str = " "
+
+    use_reps_for_all_days: bool = False
+    confirm_use_reps_for_all_days: str = " "
+
     reps_action: str = " "
     rep_name: str = " "
 
@@ -72,3 +85,12 @@ class UserAddMoreFT(CallbackData, prefix="user_add_more_ft"):
     offset: int
     start: int
     
+
+# * admin
+# * menu, edit data manage users etc
+class AdminMenu(CallbackData, prefix="admin_menu"):
+    to: str = " "
+
+class ComtrolUser(CallbackData, prefix="controll_user"):
+    user_id: int
+    action: str

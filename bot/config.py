@@ -4,6 +4,7 @@ load_dotenv()
 
 # bot 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
+ADMINS = [859261869] # todo maybe i will add more functional for it and them should be in the database
 
 # db 
 DB_NAME = "database.db"
@@ -12,15 +13,16 @@ DB_LOGGING = False
 
 MIGRATIONS_DB_URL = f"sqlite:///../{DB_NAME}"
 
-BASE_TIME_ZONE = "Europe/Kiev"
+# time zone for all time zones jusst to make easy it 
+_BASE_TIME_ZONE = "Europe/Kiev"
 
-MODELS_TIME_ZONE = BASE_TIME_ZONE
+MODELS_TIME_ZONE = _BASE_TIME_ZONE
 
 # datetime
-DATETIME_TIME_ZONE = BASE_TIME_ZONE
+DATETIME_TIME_ZONE = _BASE_TIME_ZONE
 
 # scheduler
-SCHD_TIME_ZONE = BASE_TIME_ZONE
+SCHD_TIME_ZONE = _BASE_TIME_ZONE
 SCHD_TRAINING_START_SECONDS = 0 
 
 # training timers
@@ -68,8 +70,18 @@ ALL_REPS_NAMES = [
     }
 ]
 
+WEEK_DAYS_SORT = {
+    "mon": 1,
+    "tue": 2,
+    "wed": 3,
+    "thu": 4,
+    "fri": 5,
+    "sat": 6,
+    "sun": 7,
+}
+
 # help
 # for commit database changes
 #* alembic revision --autogenerate -m "commit message"
-#* alembic upgrade head   
 #* alembic stamp head   
+#* alembic upgrade head   

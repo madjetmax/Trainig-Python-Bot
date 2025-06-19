@@ -1,5 +1,4 @@
 from copy import deepcopy
-import datetime
 from zoneinfo import ZoneInfo
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
@@ -88,6 +87,15 @@ def get_selected_days_list(selected_days, lang):
     yield (text, kb.as_markup())
 
 
+def get_confirm_use_body_part_for_all_days(day, part, lang) -> tuple[str, InlineKeyboardMarkup]:
+    text = user_texts.confirm_use_body_part_for_all_days[lang]
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=user_texts.yes_btn[lang], callback_data=callback_filters.UserSettingDay(day=day, confirm_use_body_part_for_all_days="1", body_part=part).pack())],
+        [InlineKeyboardButton(text=user_texts.no_btn[lang], callback_data=callback_filters.UserSettingDay(day=day, confirm_use_body_part_for_all_days="0").pack())]
+    ])
+
+    return text, kb
+
 def get_body_parts(selected_part, day, all_body_parts, lang):
     """returns list of rows of InlineKeyboardButton consists of all_body_parts"""
     max_in_row = 3
@@ -95,6 +103,7 @@ def get_body_parts(selected_part, day, all_body_parts, lang):
 
     current_row = []
     collumn = 0
+
     
     for part in all_body_parts:
         if collumn >= max_in_row:
@@ -112,6 +121,11 @@ def get_body_parts(selected_part, day, all_body_parts, lang):
     if current_row:
         rows.append(current_row)
     
+    if selected_part is not None:
+        # add use for all days button
+        rows.append(
+            [InlineKeyboardButton(text=user_texts.use_for_all_days[lang], callback_data=callback_filters.UserSettingDay(use_body_part_for_all_days=True, day=day, body_part=selected_part).pack())]
+        )
     # add custom body_part button
     rows.append(
         [InlineKeyboardButton(text=user_texts.custom_btn[lang], callback_data=callback_filters.UserSettingDay(add_custom_body_part=True, day=day).pack())]
@@ -203,6 +217,15 @@ def get_rep_name_setting(day, all_reps_names, lang) -> tuple[str, InlineKeyboard
     
     return text, kb.as_markup()
 
+def get_confirm_use_reps_for_all_days(day, lang) -> tuple[str, InlineKeyboardMarkup]:
+    text = user_texts.confirm_use_reps_for_all_days[lang]
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=user_texts.yes_btn[lang], callback_data=callback_filters.UserSettingDay(day=day, confirm_use_reps_for_all_days="1").pack())],
+        [InlineKeyboardButton(text=user_texts.no_btn[lang], callback_data=callback_filters.UserSettingDay(day=day, confirm_use_reps_for_all_days="0").pack())]
+    ])
+
+    return text, kb
+
 
 def get_day_setting_by_name(setting, day, day_data, state_data, lang) -> tuple[str, InlineKeyboardMarkup]:
     """returns setting from its name, takes day and day_data"""
@@ -227,6 +250,8 @@ def get_day_setting_by_name(setting, day, day_data, state_data, lang) -> tuple[s
             kb.row(InlineKeyboardButton(text=user_texts.del_rep[lang], callback_data=callback_filters.UserSettingDay(reps_action="del_last_rep", day=day).pack()))
             kb.row(InlineKeyboardButton(text=user_texts.add_1_min_break[lang], callback_data=callback_filters.UserSettingDay(reps_action="add_1m_to_last_break", day=day).pack()))
             kb.row(InlineKeyboardButton(text=user_texts.remove_1_min_break[lang], callback_data=callback_filters.UserSettingDay(reps_action="remove_1m_to_last_break", day=day).pack()))
+            kb.row(InlineKeyboardButton(text=user_texts.copy_last_break[lang], callback_data=callback_filters.UserSettingDay(reps_action="copy_last_rep", day=day).pack()))
+            kb.row(InlineKeyboardButton(text=user_texts.use_for_all_days[lang], callback_data=callback_filters.UserSettingDay(reps_action="user_for_all_days", day=day).pack()))
 
         else: # set default empty reps texts
             text = user_texts.empty_reps_title[lang]
@@ -244,10 +269,10 @@ def get_back_to_days_settings(lang) -> InlineKeyboardMarkup:
     return kb
 
 # *edit user training
-def get_user_edit_training_confirm() -> InlineKeyboardMarkup:
+def get_user_edit_training_confirm(lang) -> InlineKeyboardMarkup:
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Confirm", callback_data=callback_filters.UserEditTrainingConfirm(data="confirm").pack())],
-        [InlineKeyboardButton(text="Cancel", callback_data=callback_filters.UserEditTrainingConfirm(data="cancel").pack())],
+        [InlineKeyboardButton(text=user_texts.yes_btn[lang], callback_data=callback_filters.UserEditTrainingConfirm(data="confirm").pack())],
+        [InlineKeyboardButton(text=user_texts.no_btn[lang], callback_data=callback_filters.UserEditTrainingConfirm(data="cancel").pack())],
     ])
 
     return kb

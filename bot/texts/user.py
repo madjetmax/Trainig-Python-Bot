@@ -33,8 +33,8 @@ choose_days_title = {
 }
 
 can_setup_trainigns = {
-    "en": "You can always setup your trainings by command /trainings",
-    "uk": "Ви завжди можете налаштувати тренування за командою /trainings",
+    "en": "You can always setup your trainings by command /start",
+    "uk": "Ви завжди можете налаштувати тренування за командою /start",
 }
 
 edit_trainings = {
@@ -69,6 +69,16 @@ invalid_time = {
 start_training = {
     "en": "You are not on training, /start_training to start",
     "uk": "Ви не на тренуванні, /start_training щоб почати",
+}
+
+confirm_use_body_part_for_all_days = {
+    "en": "Do you realy want to use this body part setting for all days?",
+    "uk": "Ви спаравді хотете використовувати це налаштування частини тіла для всіх днів?",
+}
+
+confirm_use_reps_for_all_days = {
+    "en": "Do you realy want to use this reps setting for all days?",
+    "uk": "Ви спаравді хотете використовувати це налаштування підходів для всіх днів?",
 }
 
 
@@ -169,13 +179,13 @@ warmup_timer_title = {
 }
 
 break_title = {
-    "en": "Break, {minutes}:{seconds}",
-    "uk": "Перерва, {minutes}:{seconds}",
+    "en": "Break, {minutes}:{seconds} left",
+    "uk": "Перерва, {minutes}:{seconds} лишилося",
 }
 
 warmup_title = {
-    "en": "Warmup, {minutes}:{seconds}",
-    "uk": "Розігрів, {minutes}:{seconds}",
+    "en": "Warmup, {minutes}:{seconds} left",
+    "uk": "Розігрів, {minutes}:{seconds} лишилося",
 }
 
 rep_title = {
@@ -186,6 +196,11 @@ rep_title = {
 curent_rep = {
     "en": "Current: {name}",
     "uk": "Поточний: {name}",
+}
+
+training_finished = {
+    "en": "Training Finished!",
+    "uk": "Тренування Завершено!",
 }
 
 finished_training_text = {
@@ -309,7 +324,7 @@ no_btn = {
 }
 
 cancel_btn = {
-    "en": "Cansel",
+    "en": "Cancel",
     "uk": "Відміна",
 }
 
@@ -346,6 +361,16 @@ add_1_min_break = {
 remove_1_min_break = {
     "en": "Remove 1 min from last break",
     "uk": "Видалити 1 хвилину з останньої перерви",
+}
+
+use_for_all_days = {
+    "en": "User this setting for all days",
+    "uk": "Застосувати це налаштування для усіх днів",
+}
+
+copy_last_break = {
+    "en": "Copy last Rep and Break",
+    "uk": "Дублювати останній підхід і перерву",
 }
 
 custom_btn = {

@@ -26,21 +26,21 @@ async def start(message: Message):
     user = await db.get_user(user_data.id)
 
     if user: # send register message
-        # check if user created trainings 
         trainings = user.trainings
         
         lang = user.lang
 
-        if trainings:
-            kb = kbs.get_user_edit_training_confirm()
+        # check if user created trainings 
+        if trainings: 
+            kb = kbs.get_user_edit_training_confirm(lang)
             await message.answer(texts.edit_trainings[lang], reply_markup=kb)
         else:
             kb = kbs.confirm_setup(lang)
             await message.answer(texts.start_training_set_up[lang].format(name=user_data.full_name), reply_markup=kb)
     else:
         lang = user_data.language_code
-        # send choose lang
 
+        # send choose lang
         kb = kbs.get_choose_lang()
         await message.answer(texts.greate[lang].format(name=user_data.full_name.capitalize()), reply_markup=kb)
 

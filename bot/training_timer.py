@@ -1,12 +1,10 @@
 import asyncio
 import time
-from scheduler import timers as schedule_manager
 
 from config import *
 
-
-
 timer_tasks = {}
+timers = {} # user_id: Timer() object
 
 class Timer():
     """takes user_id and max_time (in seconds)"""
@@ -35,6 +33,7 @@ class Timer():
                 await self.update_message()
         except Exception as ex:
             print(ex)
+
     async def on_end_task(self):
         await asyncio.sleep(self.time) 
         await self.update_on_end()
@@ -83,9 +82,6 @@ class Timer():
             await self.start_update_task()
             await self.start_end_task()
 
-            # schedule_manager.start_training_update(self)
-            # schedule_manager.start_timer_end_check(self)
-
     async def stop(self):
         if self.on_run:
             self.on_run = False
@@ -93,12 +89,9 @@ class Timer():
             await self.remove_update_task()
             await self.remove_end_task()
 
-            # schedule_manager.stop_training_update(self)
-            # schedule_manager.stop_timer_end_check(self)
-
     def restart(self):
         self.time = self.max_time
-    
+        
     async def update_end_time(self):
         # start scheduler again
         
@@ -109,9 +102,6 @@ class Timer():
         # restart update
         await self.remove_update_task()
         await self.start_update_task()
-
-        # schedule_manager.stop_timer_end_check(self)
-        # schedule_manager.start_timer_end_check(self)
 
     # schedule funks
     async def update_message(self):

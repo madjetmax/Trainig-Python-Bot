@@ -29,7 +29,7 @@ class UserTraining(StatesGroup):
     user_reps_names = State() # list of dict
     user_body_parts_names = State() # list of dict
 
-    timer = State() # in seconds
+    timer = State() # in seconds, has user id to get it from dict
     current_rep_ind = State() # int. its can be a break, warmup or prep data
     
     # for counting how many left and finished

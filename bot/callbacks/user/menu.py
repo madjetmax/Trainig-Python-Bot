@@ -1,3 +1,4 @@
+from copy import deepcopy
 from aiogram import Router, F, Bot
 from aiogram.types import CallbackQuery, Message
 from config import *
@@ -52,7 +53,10 @@ async def user_menu_switch_day(call: CallbackQuery, callback_data: callback_filt
             await call.answer(texts.at_least_one_day_answer[lang])
             return
     else:
-        selected_days[switch_day] = {"selected_part": "legs", "reps": []}
+        selected_days[switch_day] = {"selected_part": "arms", "reps": []}
+
+    # sorting days by number of day in WEEK_DAYS_SORT
+    selected_days = {k: d for k, d in sorted(selected_days.items(), key=lambda x: WEEK_DAYS_SORT[x[0]])}
 
     await db.udpate_user_trainings(user_data.id, {"days_data": selected_days})
 
@@ -211,6 +215,60 @@ async def setting_day_setting(call: CallbackQuery, callback_data: callback_filte
         )
     except Exception as ex:
         pass 
+# *body part
+# to set body_part for all days
+@router.callback_query(callback_filters.UserEditDay.filter(F.use_body_part_for_all_days)) # check if True
+async def set_body_part_for_all_days(call: CallbackQuery, callback_data: callback_filters.UserEditDay, state: FSMContext):
+    message = call.message
+    chat_id = message.chat.id
+    user_data = call.from_user
+
+    selected_day = callback_data.day
+    part = callback_data.body_part
+
+    user = await db.get_user(user_data.id)
+    lang = user.lang
+
+    if part != " ":
+        # send confirm
+        text, kb = kbs.get_confirm_use_body_part_for_all_days(selected_day, part, lang)
+        await message.edit_text(text, reply_markup=kb)
+    await call.answer()
+
+# confirm
+@router.callback_query(callback_filters.UserEditDay.filter(F.confirm_use_body_part_for_all_days != " ")) 
+async def confirm_body_part_for_all_days(call: CallbackQuery, callback_data: callback_filters.UserEditDay, state: FSMContext):
+    message = call.message
+    chat_id = message.chat.id
+    user_data = call.from_user
+
+    selected_day = callback_data.day
+    part = callback_data.body_part
+    confirm = callback_data.confirm_use_body_part_for_all_days
+
+
+    state_data = await state.get_data()
+
+    user = await db.get_user(user_data.id)
+    lang = user.lang
+    days: dict = user.trainings.days_data
+    all_body_parts = user.trainings.all_body_parts
+
+    # "1" = True, "0" = False
+    if confirm == "1": # check if confirm 
+        # setting for all days
+        for day in days.keys():
+            days[day]["selected_part"] = part
+
+        # updata user trainings
+        await db.udpate_user_trainings(
+            user_data.id, {"days_data": days}
+        )
+
+    text, kb = kbs.get_day_setting_by_name("workout_body_part", selected_day, days[selected_day],  lang=lang, all_body_parts=all_body_parts, user=user)
+
+    await message.edit_text(text, reply_markup=kb)
+
         
 
 @router.callback_query(callback_filters.UserEditDay.filter(F.body_part != " "))
@@ -302,6 +360,39 @@ async def setting_custom_body_part(call: CallbackQuery, callback_data: callback_
         
 
 # *resp
+# confirm
+@router.callback_query(callback_filters.UserEditDay.filter(F.confirm_use_reps_for_all_days != " ")) 
+async def confirm_reps_for_all_days(call: CallbackQuery, callback_data: callback_filters.UserEditDay, state: FSMContext):
+    message = call.message
+    chat_id = message.chat.id
+    user_data = call.from_user
+
+    selected_day = callback_data.day
+    part = callback_data.body_part
+    confirm = callback_data.confirm_use_reps_for_all_days
+
+    user = await db.get_user(user_data.id)
+    lang = user.lang
+
+    # getting days and their data
+    days: dict = user.trainings.days_data
+    reps = days[selected_day]["reps"]
+
+    # "1" = True, "0" = False
+    if confirm == "1": # check if confirm 
+        # setting for all days
+        for day in days.keys():
+            days[day]["reps"] = reps
+
+        # updata user trainings
+        await db.udpate_user_trainings(
+            user_data.id, {"days_data": days}
+        )
+
+    # edit message
+    text, kb = kbs.get_day_setting_by_name("reps", selected_day, days[selected_day], lang=lang)
+    await message.edit_text(text, reply_markup=kb)
+
 @router.callback_query(callback_filters.UserEditDay.filter(F.reps_action != " "))
 async def setting_reps(call: CallbackQuery, callback_data: callback_filters.UserEditDay, state: FSMContext):
     message = call.message
@@ -342,7 +433,21 @@ async def setting_reps(call: CallbackQuery, callback_data: callback_filters.User
         if action == "remove_1m_to_last_break":
             if reps[-1]["name"] == "break":
                 reps[-1]["minutes"] -= 1
-            
+                reps[-1]["minutes"] = max(0, reps[-1]["minutes"])
+
+        if action == "copy_last_rep":
+            last_rep = deepcopy(reps[-2])
+            last_break = deepcopy(reps[-1])
+
+            reps.append(last_rep)
+            reps.append(last_break)
+        
+        if action == "user_for_all_days":
+            # send confirm message
+            text, kb = kbs.get_confirm_use_reps_for_all_days(day, user.lang)
+            await message.edit_text(text, reply_markup=kb)
+            return
+        
         text, kb = kbs.get_day_setting_by_name("reps", day, day_data, lang=user.lang)
         await message.edit_text(text, reply_markup=kb)
         await db.udpate_user_trainings(user_data.id, {'days_data': days})
