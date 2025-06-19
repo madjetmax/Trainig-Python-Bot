@@ -223,11 +223,11 @@ async def get_user_menu(to=None, user_data=None, lang="", **kwargs) -> tuple[str
             # add keyboard if message is the last
             if i + 1 == len(finished_trainings) and i + 1 < len(user.finished_trainings):
                 start = offset
-                kb = await trainings_kbs.get_add_more_f_t(start, offset)
+                f_t_kb = await trainings_kbs.get_add_more_f_t(start, offset)
             # add message in messages list
-            text = get_training_result(f_t, user.lang, user.trainings.all_body_parts)
+            f_t_text = get_training_result(f_t, user.lang, user.trainings.all_body_parts)
             messages.append(
-                (text, kb)
+                (f_t_text, f_t_kb)
             )
 
     return text, kb.as_markup(), messages
