@@ -1,1 +1,1 @@
-empty yet
+Version 0.0.2, Added admin, finished languages, updated menus and functions, code optimizatioms
