@@ -219,7 +219,7 @@ async def get_user_menu(to=None, user_data=None, lang="", **kwargs) -> tuple[str
         # sort trainins by date
         finished_trainings = sorted(user.finished_trainings[:offset], key=sort_finished_trainings)
         for i, f_t in enumerate(finished_trainings):
-            kb = None
+            f_t_kb = None
             # add keyboard if message is the last
             if i + 1 == len(finished_trainings) and i + 1 < len(user.finished_trainings):
                 start = offset
