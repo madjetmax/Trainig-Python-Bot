@@ -1,4 +1,4 @@
-from aiogram import Router, F, Bot
+from aiogram import Router, F, Bot, Dispatcher
 from aiogram.types import Message
 from aiogram.filters import CommandStart, Command
 from aiogram.fsm.context import FSMContext
@@ -164,7 +164,7 @@ def check_time_valid(text: str):
         return False
     
 @router.message(states.UserSetUp.time_start, F.text)
-async def get_start_time(message: Message, state: FSMContext):
+async def get_start_time(message: Message, dispatcher: Dispatcher, state: FSMContext):
     valid_time = check_time_valid(message.text)
 
     if valid_time:
@@ -202,7 +202,8 @@ async def get_start_time(message: Message, state: FSMContext):
         days = list(state_data["days"].keys())
         
         schedule_manager.create_training_remind(
-            bot, user_data.id, 
+            bot, dispatcher, 
+            user_data.id, 
             days, 
             hours, minutes
         )

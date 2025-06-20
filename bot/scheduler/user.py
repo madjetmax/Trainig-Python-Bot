@@ -35,10 +35,10 @@ async def start_all_users_training_reminds(bot: Bot, dp: Dispatcher):
                 bot, dp,
                 user.id, 
                 days_data, 
-                now.time().hour,
-                now.time().minute,
-                # trainings.time_start_hours, 
-                # trainings.time_start_minutes,
+                # now.time().hour,
+                # now.time().minute,
+                trainings.time_start_hours, 
+                trainings.time_start_minutes,
             )
     
 async def send_trainig_remind(bot: Bot, dp: Dispatcher, user_id: int):
@@ -74,14 +74,15 @@ def create_training_remind(bot: Bot, dp: Dispatcher, user_id, days: list, hours,
     job = scheduler.get_job(job_id)
 
     if job: # restart if job already exists
-        restart_training_remind(job_id, bot, user_id, days, hours, minutes)
+        restart_training_remind(job_id, bot, dp, user_id, days, hours, minutes)
     else:
         scheduler.add_job(
             send_trainig_remind, 'cron', 
             day_of_week=", ".join(days), 
-            hour=hours, 
-            minute=minutes, 
-            second=now.time().second + 1,
+            hour=hours,
+            minute=minutes,
+            second=SCHD_TRAINING_START_SECONDS,
+            # second=now.time().second + 1,
             args=(bot, dp, user_id), 
             id=job_id
         )
