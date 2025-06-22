@@ -6,9 +6,11 @@ from sqlalchemy.exc import NoResultFound
 import datetime
 
 from .engine import session_maker
-from .models import User, UserTrainings, FinishedUserTraining
+from .models import User, UserTrainings, FinishedUserTraining, UserStats
 
 # *user
+
+USER_OPTIONS = (joinedload(User.trainings), joinedload(User.finished_trainings), joinedload(User.stats))
 async def create_user(user_id, user_name, lang, db_session=None) -> User:
     if db_session == None:
         db_session = session_maker()
@@ -37,7 +39,7 @@ async def get_user(user_id, db_session=None) -> User | None:
         db_session = session_maker()
 
     async with db_session:
-        query = select(User).where(User.id == user_id).options(joinedload(User.trainings), joinedload(User.finished_trainings))
+        query = select(User).where(User.id == user_id).options(*USER_OPTIONS)
         data = await db_session.execute(query)
         
         try:
@@ -54,7 +56,7 @@ async def update_user(user_id, data, db_session=None) -> User:
         await db_session.execute(query)
         await db_session.commit()
 
-        data = await db_session.get(User, user_id, options=(joinedload(User.trainings), joinedload(User.finished_trainings)))
+        data = await db_session.get(User, user_id, options=USER_OPTIONS)
         return data
         
 async def delete_user(user_id, db_session=None):
@@ -62,7 +64,7 @@ async def delete_user(user_id, db_session=None):
         db_session = session_maker()
 
     async with db_session:
-        user = await db_session.get(User, user_id, options=[joinedload(User.trainings), joinedload(User.finished_trainings)])
+        user = await db_session.get(User, user_id, options=USER_OPTIONS)
         await db_session.delete(user)
         await db_session.commit()
         
@@ -71,7 +73,7 @@ async def get_all_users(db_session=None) -> list[User]:
         db_session = session_maker()
 
     async with db_session:
-        query = select(User).options(joinedload(User.trainings), joinedload(User.finished_trainings))
+        query = select(User).options(*USER_OPTIONS)
         data = await db_session.execute(query)
         return data.unique().scalars().all()
 
@@ -131,7 +133,7 @@ async def delete_user_trainings(user_id, db_session=None) -> bool:
     if db_session == None:
         db_session = session_maker()
     async with db_session:
-        query = select(User).where(User.id == user_id).options(joinedload(User.trainings), joinedload(User.finished_trainings))
+        query = select(User).where(User.id == user_id).options(*USER_OPTIONS)
         data = await db_session.execute(query)
         user = data.unique().scalars().one()
 
@@ -204,4 +206,22 @@ async def create_user_fihished_trainig(user_id, data: dict, db_session=None) -> 
 
         await db_session.commit()
         return finished_training
-    return True
+
+# *user stats
+async def create_user_stats(user_id, data, db_session=None):
+    if db_session == None:
+        db_session = session_maker()
+    async with db_session:
+        user = await get_user(user_id, db_session)
+
+        # creating object from data
+        new_stats = UserStats(
+            user=user,
+            **data
+        )
+        # save
+        user.stats.append(new_stats)
+        db_session.add(new_stats)
+
+        await db_session.commit()
+        return new_stats

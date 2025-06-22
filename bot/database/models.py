@@ -1,5 +1,7 @@
 from sqlalchemy import DateTime, Float, String, Text, Boolean, ARRAY, Integer, JSON, ForeignKey
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column,  relationship
+from sqlalchemy.orm import joinedload
+
 from typing import List
 from config import * 
 from .datatypes import CustomJSON
@@ -31,13 +33,17 @@ class User(Base):
     # relations
     trainings: Mapped["UserTrainings"] = relationship(back_populates="user", cascade="all, delete-orphan", passive_deletes=True)
     finished_trainings: Mapped[List["FinishedUserTraining"]] = relationship(back_populates="user", cascade="all, delete-orphan", passive_deletes=True)
+    stats: Mapped[List["UserStats"]] = relationship(back_populates="user", cascade="all, delete-orphan", passive_deletes=True)
+    
     admin_chatting: Mapped[List["AdminChatting"]] = relationship(back_populates="user", cascade="all, delete-orphan", passive_deletes=True)
 
+    # aura
     aura: Mapped[float] = mapped_column(Float, default=0)
 
     def __str__(self):
         data = f"{self.id}, {self.name}, {self.status}, {self.aura}"
         return data
+    
     
 class UserTrainings(Base):
     __tablename__ = "user_trainings"
@@ -77,6 +83,19 @@ class FinishedUserTraining(Base):
     time_end: Mapped[DateTime] = mapped_column(DateTime(True))
 
     aura_got: Mapped[int] = mapped_column(Integer)
+
+class UserStats(Base):
+    __tablename__ = "user_stats"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("user.id", ondelete="CASCADE"))
+    user: Mapped["User"] = relationship(back_populates="stats")
+
+    # aura
+    aura_reduced_on_training_skip: Mapped[int] = mapped_column(Integer, nullable=True)
+
+
 
 # TODO bot and admin
 class AdminChatting(Base):

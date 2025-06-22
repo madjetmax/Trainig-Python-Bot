@@ -304,9 +304,9 @@ async def start_training(message: Message, state: FSMContext):
 
     done = check_training_is_done_today(user)
 
-    text = "start training?"
+    text = texts.on_start_trainin_title[lang]
     if done:
-        text = "you already trained today, start again?"
+        text = texts.already_trained_title[lang]
 
     kb = kbs.get_start_training(lang, False)
     await message.answer(text, reply_markup=kb)

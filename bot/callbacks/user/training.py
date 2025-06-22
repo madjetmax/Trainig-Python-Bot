@@ -165,28 +165,34 @@ async def confirm_start_training(call: CallbackQuery, callback_data: callback_fi
         await state.clear()
         await state.set_state(states.UserTraining)
 
-        warmup_time = 10 # 5 minutes. set this value in seconds
-
-        training_timer = Timer(user_data.id, warmup_time)
-        timers[user_data.id] = training_timer
-
+        # get today day
         tz = ZoneInfo(DATETIME_TIME_ZONE)
         now = datetime.datetime.now(tz)
-
         day_name = now.strftime("%A").lower()[:3] # ex: getting from Monday -> mon
 
         # getting current day training data
         user = await db.get_user(user_data.id)
         user_trainings_data = user.trainings
-
         if user_trainings_data == None:
-            await call.answer("")
+            await call.answer()
             return
-        training_data = user_trainings_data.days_data[day_name]
+        
+        training_data = user_trainings_data.days_data.get(day_name)
 
+        if training_data is None:
+            # todo send choose quick training
+            await call.answer()
+            return
+        
+        # else setting training
         # counting reps count filtering list if reps are not breaks
         all_reps_count = len([rep for rep in training_data["reps"] if rep["name"] != "break"]) 
-        
+
+        # init timer 
+        warmup_time = WARMUP_TIME # 4 minutes. set this value in seconds
+
+        training_timer = Timer(user_data.id, warmup_time)
+        timers[user_data.id] = training_timer
 
         # setting state data
         await state.update_data(

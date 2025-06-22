@@ -18,7 +18,7 @@ router = Router()
 
 # registration 
 @router.message(CommandStart())
-async def start(message: Message):
+async def start(message: Message, state: FSMContext):
     user_data = message.from_user
 
     # await db.delete_user(user_data.id)
@@ -31,28 +31,38 @@ async def start(message: Message):
         lang = user.lang
 
         # check if user created trainings 
-        if trainings: 
+        if trainings:
+            # check if user on training 
+            state_data = await state.get_data()
+            if state_data.get("timer"):
+                await message.answer(texts.cant_edit_at_training[lang])
+                return
+            
+            # else send edit confirm
             kb = kbs.get_user_edit_training_confirm(lang)
             await message.answer(texts.edit_trainings[lang], reply_markup=kb)
         else:
+            # send setup trainings
             kb = kbs.confirm_setup(lang)
             await message.answer(texts.start_training_set_up[lang].format(name=user_data.full_name), reply_markup=kb)
-    else:
+    
+    else: # send choosed lang
         lang = user_data.language_code
 
-        # send choose lang
+        if lang not in texts.all_lengs_codes:
+            lang = "en"
+
+        # send message
         kb = kbs.get_choose_lang()
         await message.answer(texts.greate[lang].format(name=user_data.full_name.capitalize()), reply_markup=kb)
 
         # create user
         await db.create_user(user_data.id, user_data.full_name, lang)
 
-
 # new body part 
 @router.message(states.UserSetUp.new_body_part, F.text)
 async def get_new_body_part(message: Message, state: FSMContext):
     bot: Bot = message.bot
-
     text = message.text
     message_id = message.message_id
     chat_id = message.chat.id
@@ -60,9 +70,9 @@ async def get_new_body_part(message: Message, state: FSMContext):
     state_data = await state.get_data()
     lang = state_data["user_lang"]
 
-    days = state_data.get("days")
+    # get days, day and day_data
+    days = state_data["days"]
 
-    # get day and day_data
     day = state_data["selected_day"]
     day_data = days[day]
 
@@ -79,10 +89,6 @@ async def get_new_body_part(message: Message, state: FSMContext):
     # set selected body part
     days[day]["selected_part"] = text
 
-    # delete messages
-    await message.delete()
-    await bot.delete_message(chat_id=chat_id, message_id=message_id-1)
-
     # udpate message to update
     text, kb = kbs.get_day_setting_by_name("workout_body_part", day, day_data, state_data, lang)
 
@@ -93,14 +99,17 @@ async def get_new_body_part(message: Message, state: FSMContext):
         reply_markup=kb
     )
 
+    # delete messages
+    await message.delete()
+    await bot.delete_message(chat_id=chat_id, message_id=message_id-1)
+    
+    # set state
     await state.set_state(states.UserSetUp.days)
-
 
 # new rep name
 @router.message(states.UserSetUp.new_rep_name, F.text)
 async def get_new_rep_name(message: Message, state: FSMContext):
     bot: Bot = message.bot
-
     text = message.text
     message_id = message.message_id
     chat_id = message.chat.id
@@ -108,11 +117,8 @@ async def get_new_rep_name(message: Message, state: FSMContext):
     state_data = await state.get_data()
     lang = state_data["user_lang"]
 
-    days = state_data.get("days")
-
-    # get day and day_data
+    # get day 
     day = state_data["selected_day"]
-    day_data = days[day]
 
     # update body parts
     all_reps_names = state_data["all_reps_names"]
@@ -124,10 +130,6 @@ async def get_new_rep_name(message: Message, state: FSMContext):
         }
     )
 
-    # delete messages
-    await message.delete()
-    await bot.delete_message(chat_id=chat_id, message_id=message_id-1)
-
     # udpate message to update
     text, kb = kbs.get_rep_name_setting(day, all_reps_names, lang)
 
@@ -138,9 +140,14 @@ async def get_new_rep_name(message: Message, state: FSMContext):
         reply_markup=kb
     )
 
+    # delete messages
+    await message.delete()
+    await bot.delete_message(chat_id=chat_id, message_id=message_id-1)
+
+    # set state
     await state.set_state(states.UserSetUp.days)
 
-
+# start time
 def check_time_valid(text: str):
     try:    
         if ":" in text:
@@ -150,40 +157,39 @@ def check_time_valid(text: str):
             hours = int(text.split(".")[0])
             minutes = int(text.split(".")[1])
         else:
-            return False
+            return None
         
+        # check if time in range
         if hours >= 24 or hours < 0:
-            return False
+            return None
         
         if minutes >= 60 or minutes < 0:
-            return False
+            return None
 
         return hours, minutes
     except Exception as ex:
         print(ex)
-        return False
+        return None
     
 @router.message(states.UserSetUp.time_start, F.text)
 async def get_start_time(message: Message, dispatcher: Dispatcher, state: FSMContext):
+    message_id = message.message_id
+    chat_id = message.chat.id
+    bot: Bot = message.bot
+    user_data = message.from_user
+    
     valid_time = check_time_valid(message.text)
-
     if valid_time:
-        message_id = message.message_id
-        chat_id = message.chat.id
-        bot: Bot = message.bot
-        user_data= message.from_user
-
         # update and get state
         state_data = await state.update_data(
             time_start=message.text
         )
-
         lang = state_data["user_lang"]
 
-        # delete messages
-        await message.delete()
-        msg = await message.answer(texts.trainings_set_up[lang], reply_markup=None)
+        # send message on seccess
+        await message.answer(texts.trainings_set_up[lang], reply_markup=None)
 
+        # delete message to send time 
         try:
             await message.bot.delete_message(message.chat.id, message_id-1) 
         except Exception:
@@ -209,12 +215,8 @@ async def get_start_time(message: Message, dispatcher: Dispatcher, state: FSMCon
         )
 
         await state.clear()
-
-        await asyncio.sleep(2)
-        await message.bot.delete_message(chat_id, msg.message_id)
         
     else: # answer if time is invalid
         state_data = await state.get_data()
         lang = state_data["user_lang"]
-
         await message.answer(texts.invalid_time[lang])

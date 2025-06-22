@@ -167,6 +167,16 @@ its_training_time = {
     "uk": "Час тренування!",
 }
 
+already_trained_title =  {
+    "en": "You alredy trained today, start one more time?",
+    "uk": "Ви вже тренувались сьогодні, хочете ще раз?",
+}
+
+on_start_trainin_title = {
+    "en": "Start trainig?",
+    "uk": "Почати тренування?",
+}
+
 
 break_timer_title = {
     "en": "Break, {minutes}:{seconds} left",
@@ -278,6 +288,17 @@ finish_training_confirm_title = {
 pause_training_confirm_title = {
     "en": "Pause training?\nAfter reset, break timer will end",
     "uk": "Призупинити тренування?\n Після відновлення, таймер перерви закінчиться",
+}
+
+# for missed trainigs
+missed_training = {
+    "en": "It seems like you missed training yesturday, your Aura reduced",
+    "uk": "Здається ви пропустили вчорашнє тренування, ваша Aura буде зменшена "
+}
+
+aura_reduce_result = {
+    "en": "Aura before: {aura_before}\nAura reduced: {aura_reduce}\nYour Aura: {current_aura}",
+    "uk": "Aura до цього: {aura_before}\nAura зменшено: {aura_reduce}\nВаша Aura: {current_aura}",
 }
 
 
