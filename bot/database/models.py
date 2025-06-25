@@ -1,4 +1,4 @@
-from sqlalchemy import DateTime, Float, String, Text, Boolean, ARRAY, Integer, JSON, ForeignKey
+from sqlalchemy import DateTime, Float, String, BigInteger, Text, Boolean, ARRAY, Integer, JSON, ForeignKey
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column,  relationship
 from sqlalchemy.orm import joinedload
 
@@ -24,7 +24,7 @@ class Base(DeclarativeBase):
 class User(Base):
     __tablename__ = "user"
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     status: Mapped[str] = mapped_column(Text)
 
