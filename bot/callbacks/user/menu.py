@@ -172,7 +172,7 @@ async def user_menu(call: CallbackQuery, callback_data: callback_filters.UserEdi
                 await message.edit_text(text=text, reply_markup=kb)
             except TelegramBadRequest:
                 await call.answer()
-                
+    
     # delete message title
     try:
         await message.bot.delete_message(

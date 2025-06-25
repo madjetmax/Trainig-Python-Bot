@@ -7,11 +7,25 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 ADMINS = [859261869] # todo maybe i will add more functional for it and them should be in the database
 
 # *database
-DB_NAME = "database.db"
-DB_URL = f"sqlite+aiosqlite:///../{DB_NAME}"
-DB_LOGGING = False
+# postgresql
+DB_USER=os.getenv("DB_USER")
+DB_PASSWORD=os.getenv("DB_PASSWORD")
 
-MIGRATIONS_DB_URL = f"sqlite:///../{DB_NAME}"
+DB_HOST=os.getenv("DB_HOST")
+DB_PORT=os.getenv("DB_PORT")
+
+DB_NAME=os.getenv("DB_NAME")
+
+DB_URL = f"postgresql+asyncpg://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+MIGRATIONS_DB_URL = f"postgresql+asyncpg://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+
+# sqlite
+# DB_NAME = "database.db"
+# DB_URL = f"sqlite+aiosqlite:///../{DB_NAME}"
+
+# MIGRATIONS_DB_URL = f"sqlite:///../{DB_NAME}"
+
+DB_LOGGING = False
 
 # *timezones
 # time zone for all time zones jusst to make easy it 
@@ -28,6 +42,7 @@ SCHD_TIME_ZONE = _BASE_TIME_ZONE
 
 # *scheduler
 SCHD_TRAINING_START_SECONDS = 0 
+SCHD_SKIPPEND_TRAINING_START_SECONDS = 0 
 
 SCHD_SEND_TRAINIG_SKIPPED_HOURS = 6 # 6 AM at morning
 SCHD_SEND_TRAINIG_SKIPPED_MINUTES = 0
@@ -74,7 +89,7 @@ ALL_REPS_NAMES = [
     {
         "name": "brusya",
         "en": "Brusya",
-        "uk": "брусья",
+        "uk": "Брусья",
     }
 ]
 

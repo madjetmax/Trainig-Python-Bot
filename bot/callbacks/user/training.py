@@ -160,8 +160,8 @@ async def confirm_start_training(call: CallbackQuery, callback_data: callback_fi
         state_data = await state.get_data()
         if state_data.get("timer"): # check if user on training
             return
-        
-        # set warmup on the very start of training
+
+        # clear and set state        
         await state.clear()
         await state.set_state(states.UserTraining)
 
@@ -172,6 +172,8 @@ async def confirm_start_training(call: CallbackQuery, callback_data: callback_fi
 
         # getting current day training data
         user = await db.get_user(user_data.id)
+        lang = user.lang
+
         user_trainings_data = user.trainings
         if user_trainings_data == None:
             await call.answer()
@@ -179,9 +181,18 @@ async def confirm_start_training(call: CallbackQuery, callback_data: callback_fi
         
         training_data = user_trainings_data.days_data.get(day_name)
 
+        # check if user has training today
         if training_data is None:
-            # todo send choose quick training
-            await call.answer()
+            # send select any other day's training plan
+
+            # edit message
+            text, kb = kbs.get_start_other_day_training(lang)
+            text = text.format(
+                day_name=texts.trans_days_of_week[lang][day_name]
+            )
+            await message.edit_text(
+                text, reply_markup=kb
+            )
             return
         
         # else setting training
@@ -190,7 +201,7 @@ async def confirm_start_training(call: CallbackQuery, callback_data: callback_fi
 
         # init timer 
         warmup_time = WARMUP_TIME # 4 minutes. set this value in seconds
-
+        # set warmup on the very start of training
         training_timer = Timer(user_data.id, warmup_time)
         timers[user_data.id] = training_timer
 
@@ -215,15 +226,15 @@ async def confirm_start_training(call: CallbackQuery, callback_data: callback_fi
             # other state and lang
             stopped=False,
             pauses=[],
-            user_lang=user.lang
+            user_lang=lang
         )
 
 
         minutes, seconds = training_timer.get_clear_time()
 
         # get text and kb
-        text = texts.warmup_timer_title[user.lang].format(minutes=minutes, seconds=seconds)
-        kb = kbs.get_break_controll(user.lang)
+        text = texts.warmup_timer_title[lang].format(minutes=minutes, seconds=seconds)
+        kb = kbs.get_break_controll(lang)
 
         # delete and send new message
         await message.edit_text(text, reply_markup=kb)       
@@ -252,13 +263,14 @@ async def navigate_training_states(call: CallbackQuery, callback_data: callback_
     navigate_data = callback_data.data
     state_data = await state.get_data()
 
-    if state_data["stopped"]:
-        return
-
     # all reps 
     training_data = state_data.get("full_training_data")
     if training_data == None: # check if state is UserTraining and not other like UserSetUp
         await message.answer(texts.start_training[lang])
+        return
+    
+    if state_data["stopped"]:
+        return
 
     user = await db.get_user(user_data.id)
     lang = user.lang
@@ -476,7 +488,6 @@ async def send_rep(message: Message, state_data, lang) -> Message:
     )
 
     msg = await message.answer(text, reply_markup=kb)
-    print(1)
     return msg
 
 # control training. pause finish or back (delete message)
@@ -579,6 +590,188 @@ async def controll_training_status(call: CallbackQuery, callback_data: callback_
 
     else:
         await message.answer(texts.start_training[lang])
+
+        
+# *user select other day training plang
+@router.callback_query(callback_filters.UserStartOtherDayPlanTraining.filter())
+async def start_other_day_trainig_plans(call: CallbackQuery, callback_data: callback_filters.UserStartOtherDayPlanTraining, state: FSMContext):
+    message: Message = call.message
+    user_data = call.from_user
+
+    action = callback_data.data
+
+    if action == "cancel":
+        await message.delete()
+    
+    if action == "confirm":
+        state_data = await state.get_data()
+
+        if state_data.get("timer"):
+            await call.answer()
+            return
+        
+        
+
+        user = await db.get_user(user_data.id)
+        lang = user.lang
+
+        # get trainings and send list to choose
+
+        messages_to_delete = []
+
+        # edit text
+        text, messages = kbs.get_selected_days_training_plans(user.trainings.days_data, lang)
+        msg = await message.edit_text(text)
+        messages_to_delete.append(msg.message_id)
+
+        # send messages
+        for text, kb in messages:
+            msg = await message.answer(text, reply_markup=kb)
+            messages_to_delete.append(msg.message_id)
+
+        # clear, set and update state
+        await state.clear()
+        await state.set_state(states.UserSelectTrainingPlan)
+
+        await state.update_data(
+            messages_to_delete=messages_to_delete
+        )
+
+@router.callback_query(callback_filters.UserSelectDayPlanTrainig.filter(F.get_plan)) # check if True 
+async def get_day_training_plan(call: CallbackQuery, callback_data: callback_filters.UserSelectDayPlanTrainig, state: FSMContext):
+    message: Message = call.message
+    bot: Bot = message.bot
+    chat_id = message.chat.id
+    user_data = call.from_user
+
+    day_name = callback_data.day_name
+
+    state_data = await state.get_data()
+
+    user = await db.get_user(user_data.id)
+    lang = user.lang
+
+    # get day data 
+    day_data = user.trainings.days_data[day_name]
+    all_body_parts = user.trainings.all_body_parts
+    all_reps_names = user.trainings.all_reps_names
+
+    # edit message
+    text, kb = kbs.get_day_training_plan(day_data, all_body_parts, all_reps_names, day_name, lang)
+    await message.edit_text(text, reply_markup=kb)
+
+@router.callback_query(callback_filters.UserSelectDayPlanTrainig.filter(F.day_name != " "))
+async def select_day_training_plan(call: CallbackQuery, callback_data: callback_filters.UserSelectDayPlanTrainig, state: FSMContext):
+    message: Message = call.message
+    bot: Bot = message.bot
+    chat_id = message.chat.id
+    user_data = call.from_user
+
+    day_name = callback_data.day_name
+
+    state_data = await state.get_data()
+
+    if state_data.get("timer"):
+        await call.answer()
+        return
+
+    # getting current day training data
+    user = await db.get_user(user_data.id)
+    lang = user.lang
+
+    
+
+    # get today day
+    tz = ZoneInfo(DATETIME_TIME_ZONE)
+    now = datetime.datetime.now(tz)
+
+    user_trainings_data = user.trainings
+    if user_trainings_data == None:
+        await call.answer()
+        return
+    
+    training_data = user_trainings_data.days_data.get(day_name)
+
+    # counting reps count filtering list if reps are not breaks
+    all_reps_count = len([rep for rep in training_data["reps"] if rep["name"] != "break"]) 
+
+    # init timer 
+    warmup_time = WARMUP_TIME # 4 minutes. set this value in seconds
+
+    # set warmup on the very start of training
+    training_timer = Timer(user_data.id, warmup_time)
+    timers[user_data.id] = training_timer
+
+    minutes, seconds = training_timer.get_clear_time()
+
+    # get text and kb
+    text = texts.warmup_timer_title[lang].format(minutes=minutes, seconds=seconds)
+    kb = kbs.get_break_controll(lang)
+
+    # delete and send new message
+    msg = await message.answer(text, reply_markup=kb)       
+
+    # setting timer update and end functions that will be call on these events
+    training_timer.on_update_funk = on_timer_update
+    training_timer.on_update_funk_args = (message.bot, chat_id, training_timer, state)
+
+    training_timer.on_end_funk = on_timer_end
+    training_timer.on_end_funk_args = (message.bot, chat_id, training_timer, state)
+
+    await training_timer.start()
+
+    # delete messages
+    await delete_messages(
+        bot, chat_id, state_data.get("messages_to_delete", [])
+    )
+
+    # clear, set and update state
+    await state.clear()
+    await state.set_state(states.UserTraining)
+
+    # setting state data
+    await state.update_data(
+        user_data=user_data,
+        # training data
+        full_training_data=training_data,
+        user_reps_names=user.trainings.all_reps_names,
+        user_body_parts_names=user.trainings.all_body_parts,
+        # timer and time
+        timer=user_data.id,
+        time_start=now,
+        # state
+        training_state="warmup",
+        # reps
+        current_rep_ind=0,
+        all_reps_count=all_reps_count,
+        reps_finished=0,
+        # message id
+        message=msg.message_id,
+        # other state and lang
+        stopped=False,
+        pauses=[],
+        user_lang=lang
+    )
+
+    
+
+@router.callback_query(callback_filters.UserSelectDayPlanTrainig.filter(F.back_to_day != " "))
+async def back_to_day_to_select_training_plan(call: CallbackQuery, callback_data: callback_filters.UserSelectDayPlanTrainig, state: FSMContext):
+    message: Message = call.message
+    bot: Bot = message.bot
+    chat_id = message.chat.id
+    user_data = call.from_user
+
+    day_name = callback_data.back_to_day
+
+    user = await db.get_user(user_data.id)
+    lang = user.lang
+
+    state_data = await state.get_data()
+
+    # edit message
+    text, kb = kbs.get_day_select_training_plan(day_name, lang)
+    await message.edit_text(text, reply_markup=kb)
 
 
 # *user view finished trainings

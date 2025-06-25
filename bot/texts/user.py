@@ -161,6 +161,16 @@ break_in_list = {
     "uk": "Перерва, час: {minutes}:{seconds}\n",
 }
 
+day_selected_part_title = {
+    "en": "Day: {day_name}\nSelected part: {selected_part}\n",
+    "uk": "День: {day_name}\nЧастина тіла: {selected_part}\n",
+}
+
+reps_title = {
+    "en": "Reps and Breaks\n",
+    "uk": "Підходи та Перерви\n",
+}
+
 # trainigs 
 its_training_time = {
     "en": "It's trainig time!",
@@ -211,6 +221,15 @@ curent_rep = {
 training_finished = {
     "en": "Training Finished!",
     "uk": "Тренування Завершено!",
+}
+
+start_other_day_training_plan_titile = {
+    "en": "You have no training plan for {day_name}. Do you wand to choose other day's training plan?",
+    "uk": "У вас не має плану тренування для {day_name}. Хочете вибрати план тренування іншого дня?",
+}
+choose_day_trainig_plan_title = {
+    "en": "Choose Day's Trainig Plan",
+    "uk": "Виберіть План Тренування Дня",
 }
 
 finished_training_text = {
@@ -308,9 +327,9 @@ trans_days_of_week = {
         "mon": "Monday",
         "tue": "Tuesday",
         "wed": "Wednesday",
-        "thu": "thursday",
+        "thu": "Thursday",
         "fri": "Friday",
-        "sat": "saturday",
+        "sat": "Saturday",
         "sun": "Sunday",
     }, 
     "uk": {
@@ -349,6 +368,16 @@ cancel_btn = {
     "uk": "Відміна",
 }
 
+select_btn = {
+    "en": "Select",
+    "uk": "Вибрати",
+}
+
+get_training_plan_btn = {
+    "en": "View Trainig Plan",
+    "uk": "План Тренування",
+}
+
 add_more_btn = {
     "en": "Add more",
     "en": "Додати ще",
@@ -384,7 +413,7 @@ remove_1_min_break = {
     "uk": "Видалити 1 хвилину з останньої перерви",
 }
 
-use_for_all_days = {
+use_for_all_days_btn = {
     "en": "User this setting for all days",
     "uk": "Застосувати це налаштування для усіх днів",
 }

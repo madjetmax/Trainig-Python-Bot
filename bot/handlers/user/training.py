@@ -166,6 +166,10 @@ async def get_training_reps(message: Message, state: FSMContext):
 
     await message.answer(text)
 
+def set_timezone(date: datetime.datetime) -> datetime.datetime:
+    tz = ZoneInfo(DATETIME_TIME_ZONE)
+    return date.astimezone(tz)
+
 # like help commands for handlers
 def get_clear_time(hours, minutes, seconds) -> str:
 
@@ -188,14 +192,13 @@ def get_clear_minites_and_seconds(minutes, seconds) -> tuple[str, str]:
         seconds = "0" + str(seconds)
 
     return minutes, seconds
+
+
 # get text from data from database
 def get_training_result(f_t: FinishedUserTraining, lang, user_all_body_parts) -> str:
     """Takes :code:`f_t` to get data from it, returns text as :class:`str`"""
-    time_start: datetime = f_t.time_start
-    time_end: datetime = f_t.time_end
-
-    tz = ZoneInfo(DATETIME_TIME_ZONE)
-    now = datetime.datetime.now(tz)
+    time_start: datetime = set_timezone(f_t.time_start)
+    time_end: datetime = set_timezone(f_t.time_end)
 
     # get clear time start
     start_hours = time_start.time().hour
@@ -223,7 +226,7 @@ def get_training_result(f_t: FinishedUserTraining, lang, user_all_body_parts) ->
     all_reps = f_t.all_reps_count
 
     # getting data in format dd-mm-yy
-    date = f_t.time_start.date()
+    date = time_start.date()
     # getting body_part
     body_part = f_t.full_training_data["selected_part"]
 
@@ -232,7 +235,7 @@ def get_training_result(f_t: FinishedUserTraining, lang, user_all_body_parts) ->
             body_part = part[lang]
             break
 
-    aura_got = 10 / (all_reps - reps_finished + 1) * (all_reps / 10) # aura based on finished and all reps count. PS maybe I will change it
+    aura_got = f_t.aura_got
 
     text = texts.finished_training_text[lang].format(
         id=f_t.id,
@@ -284,7 +287,7 @@ def check_training_is_done_today(user: User) -> bool:
     finished_trainings = user.finished_trainings
 
     for f_t in finished_trainings:
-        f_t_date = f_t.time_start.date()
+        f_t_date = set_timezone(f_t.time_start).date()
         # check if dates are the same
         if f_t_date == today_date:
             return True

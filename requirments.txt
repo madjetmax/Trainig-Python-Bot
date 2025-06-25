@@ -3,3 +3,5 @@ aioschedule==0.5.2
 python-dotenv
 aiosqlite
 SQLAlchemy
+asyncpg
+psycopg2-binary

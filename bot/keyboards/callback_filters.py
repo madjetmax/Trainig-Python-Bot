@@ -79,6 +79,15 @@ class UserControlTraining(CallbackData, prefix="user_control_training"):
 class UserBreakControll(CallbackData, prefix="user_break_controll"):
     action: str
 
+# other day plan training
+class UserStartOtherDayPlanTraining(CallbackData, prefix="user_start_od_trainig"):
+    data: str
+
+class UserSelectDayPlanTrainig(CallbackData, prefix="user_select_od_training_plan"):
+    day_name: str = ' '
+    get_plan: bool = False
+
+    back_to_day: str = " "
 
 # *finished trainigs list
 class UserAddMoreFT(CallbackData, prefix="user_add_more_ft"):

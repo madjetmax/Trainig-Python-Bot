@@ -238,6 +238,10 @@ def sort_finished_trainings(x: FinishedUserTraining) -> int:
     return -seconds
 
 # like help commands for handlers
+def set_timezone(date: datetime.datetime) -> datetime.datetime:
+    tz = ZoneInfo(DATETIME_TIME_ZONE)
+    return date.astimezone(tz)
+
 def get_clear_time(hours, minutes, seconds) -> str:
 
     if len(str(hours)) == 1:
@@ -262,11 +266,8 @@ def get_clear_minites_and_seconds(minutes, seconds) -> tuple[str, str]:
 # get text from data from database
 def get_training_result(f_t: FinishedUserTraining, lang, user_all_body_parts) -> str:
     """Takes :code:`f_t` to get data from it, returns text as :class:`str`"""
-    time_start: datetime = f_t.time_start
-    time_end: datetime = f_t.time_end
-
-    tz = ZoneInfo(DATETIME_TIME_ZONE)
-    now = datetime.datetime.now(tz)
+    time_start: datetime = set_timezone(f_t.time_start)
+    time_end: datetime = set_timezone(f_t.time_end)
 
     # get clear time start
     start_hours = time_start.time().hour
@@ -294,7 +295,7 @@ def get_training_result(f_t: FinishedUserTraining, lang, user_all_body_parts) ->
     all_reps = f_t.all_reps_count
 
     # getting data in format dd-mm-yy
-    date = f_t.time_start.date()
+    date = time_start.date()
     # getting body_part
     body_part = f_t.full_training_data["selected_part"]
 
@@ -303,7 +304,7 @@ def get_training_result(f_t: FinishedUserTraining, lang, user_all_body_parts) ->
             body_part = part[lang]
             break
 
-    aura_got = 10 / (all_reps - reps_finished + 1) * (all_reps / 10) # aura based on finished and all reps count. PS maybe I will change it
+    aura_got = f_t.aura_got 
 
     text = user_texts.finished_training_text[lang].format(
         id=f_t.id,
@@ -379,7 +380,7 @@ def get_body_parts(selected_part, day, all_body_parts, lang):
     if selected_part is not None:
         # add use for all days button
         rows.append(
-            [InlineKeyboardButton(text=user_texts.use_for_all_days[lang], callback_data=callback_filters.UserEditDay(use_body_part_for_all_days=True, day=day, body_part=selected_part).pack())]
+            [InlineKeyboardButton(text=user_texts.use_for_all_days_btn[lang], callback_data=callback_filters.UserEditDay(use_body_part_for_all_days=True, day=day, body_part=selected_part).pack())]
         )
     
     # add custom body_part button
@@ -513,7 +514,7 @@ def get_day_setting_by_name(setting, day, day_data, lang, **kwargs) -> InlineKey
             kb.row(InlineKeyboardButton(text=user_texts.add_1_min_break[lang], callback_data=callback_filters.UserEditDay(reps_action="add_1m_to_last_break", day=day).pack()))
             kb.row(InlineKeyboardButton(text=user_texts.remove_1_min_break[lang], callback_data=callback_filters.UserEditDay(reps_action="remove_1m_to_last_break", day=day).pack()))
             kb.row(InlineKeyboardButton(text=user_texts.copy_last_break[lang], callback_data=callback_filters.UserEditDay(reps_action="copy_last_rep", day=day).pack()))
-            kb.row(InlineKeyboardButton(text=user_texts.use_for_all_days[lang], callback_data=callback_filters.UserEditDay(reps_action="user_for_all_days", day=day).pack()))
+            kb.row(InlineKeyboardButton(text=user_texts.use_for_all_days_btn[lang], callback_data=callback_filters.UserEditDay(reps_action="user_for_all_days", day=day).pack()))
 
         else: # set default empty reps texts
             text = user_texts.empty_reps_title[lang]

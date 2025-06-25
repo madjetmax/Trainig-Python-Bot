@@ -19,6 +19,11 @@ from texts import user as texts
 
 from utils import user_aura as aura_manager
 
+
+def set_timezone(date: datetime.datetime) -> datetime.datetime:
+    tz = ZoneInfo(DATETIME_TIME_ZONE)
+    return date.astimezone(tz)
+
 # *trainings
 async def start_all_users_training_reminds(bot: Bot, dp: Dispatcher):
     # now = datetime.datetime.now()
@@ -70,8 +75,8 @@ def create_training_remind(bot: Bot, dp: Dispatcher, user_id, days: list, hours,
         day_of_week=", ".join(days), 
         hour=hours,
         minute=minutes,
-        # second=SCHD_TRAINING_START_SECONDS,
-        second=now.time().second + 1,
+        second=SCHD_TRAINING_START_SECONDS,
+        # second=now.time().second + 1,
         args=(bot, dp, user_id), 
         id=job_id
     )
@@ -85,7 +90,7 @@ def check_training_is_done_today(user: User) -> bool:
     finished_trainings = user.finished_trainings
 
     for f_t in finished_trainings:
-        f_t_date = f_t.time_start.date()
+        f_t_date = set_timezone(f_t.time_start).date()
         # check if dates are the same
         if f_t_date == today_date:
             return True
@@ -139,8 +144,8 @@ def create_skipped_training_remind(bot: Bot, dp: Dispatcher, user_id, days: list
         day_of_week=", ".join(days), 
         hour=hours,
         minute=minutes,
-        # second=SCHD_TRAINING_START_SECONDS,
-        second=now.time().second + 1,
+        second=SCHD_SKIPPEND_TRAINING_START_SECONDS,
+        # second=now.time().second + 1,
         args=(bot, dp, user_id), 
         id=job_id
     )
@@ -152,7 +157,7 @@ def check_training_is_done_at_day(user: User, day: datetime.datetime) -> bool:
     finished_trainings = user.finished_trainings
 
     for f_t in finished_trainings:
-        f_t_date = f_t.time_start.date()
+        f_t_date = set_timezone(f_t.time_start).date()
         # check if dates are the same
         if f_t_date == day_date:
             return True
@@ -164,7 +169,7 @@ def check_aura_redused_today(user: User, today: datetime.datetime):
     stats = user.stats
 
     for st in stats:
-        st_date = st.created.date()
+        st_date = set_timezone(st.created).date()
         # check if dates are the same
         if st_date == today_date:
             return True
@@ -191,7 +196,7 @@ async def send_skipped_training_remind(bot: Bot, dp: Dispatcher, user_id: int):
         return
     
     # check if user registered earlier
-    if user.created.date() >= yesturday.date():
+    if set_timezone(user.created).date() >= yesturday.date():
         return 
     
     # checks
@@ -228,7 +233,7 @@ async def send_skipped_training_remind(bot: Bot, dp: Dispatcher, user_id: int):
         await db.update_user(
             user.id, {"aura": new_aura}
         )
-
+        # create user stats in db
         await db.create_user_stats(user.id, {
             "aura_reduced_on_training_skip": reduce_aura
         })

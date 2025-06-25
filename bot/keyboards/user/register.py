@@ -124,7 +124,7 @@ def get_body_parts(selected_part, day, all_body_parts, lang):
     if selected_part is not None:
         # add use for all days button
         rows.append(
-            [InlineKeyboardButton(text=user_texts.use_for_all_days[lang], callback_data=callback_filters.UserSettingDay(use_body_part_for_all_days=True, day=day, body_part=selected_part).pack())]
+            [InlineKeyboardButton(text=user_texts.use_for_all_days_btn[lang], callback_data=callback_filters.UserSettingDay(use_body_part_for_all_days=True, day=day, body_part=selected_part).pack())]
         )
     # add custom body_part button
     rows.append(
@@ -251,7 +251,7 @@ def get_day_setting_by_name(setting, day, day_data, state_data, lang) -> tuple[s
             kb.row(InlineKeyboardButton(text=user_texts.add_1_min_break[lang], callback_data=callback_filters.UserSettingDay(reps_action="add_1m_to_last_break", day=day).pack()))
             kb.row(InlineKeyboardButton(text=user_texts.remove_1_min_break[lang], callback_data=callback_filters.UserSettingDay(reps_action="remove_1m_to_last_break", day=day).pack()))
             kb.row(InlineKeyboardButton(text=user_texts.copy_last_break[lang], callback_data=callback_filters.UserSettingDay(reps_action="copy_last_rep", day=day).pack()))
-            kb.row(InlineKeyboardButton(text=user_texts.use_for_all_days[lang], callback_data=callback_filters.UserSettingDay(reps_action="user_for_all_days", day=day).pack()))
+            kb.row(InlineKeyboardButton(text=user_texts.use_for_all_days_btn[lang], callback_data=callback_filters.UserSettingDay(reps_action="user_for_all_days", day=day).pack()))
 
         else: # set default empty reps texts
             text = user_texts.empty_reps_title[lang]

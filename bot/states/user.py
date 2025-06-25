@@ -50,6 +50,13 @@ class UserTraining(StatesGroup):
     # for deleting messages
     messages_to_delete = State() # ids
 
+
+# *user select training plan
+class UserSelectTrainingPlan(StatesGroup):
+
+
+    messages_to_delete = State() # ids. list
+
 # *user menu and edit data
 class UserEditData(StatesGroup):
     user_lang = State() # str, language code, ex: en uk
