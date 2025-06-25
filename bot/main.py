@@ -9,14 +9,14 @@ import database
 import scheduler
 from scheduler import user as user_scheduler
 
-# *for deploy
-from aiogram.client.session.aiohttp import AiohttpSession
+# *for pythonanywhere deploy
+# from aiogram.client.session.aiohttp import AiohttpSession
 
-session = AiohttpSession(proxy="http://proxy.server:3128")
-bot = Bot(token=BOT_TOKEN, session=session)
+# session = AiohttpSession(proxy="http://proxy.server:3128")
+# bot = Bot(token=BOT_TOKEN, session=session)
 
 
-# bot = Bot(token=BOT_TOKEN)
+bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
 dp.include_routers( 
