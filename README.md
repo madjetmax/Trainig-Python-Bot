@@ -1,1 +1,1 @@
-Version 0.0.2, Added admin, finished languages, updated menus and functions, code optimizatioms
+Version 0.0.3, Added admin, finished languages, updated menus and functions, code optimizatioms
