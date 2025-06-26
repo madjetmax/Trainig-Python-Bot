@@ -229,10 +229,14 @@ async def set_body_part_for_all_days(call: CallbackQuery, callback_data: callbac
     user_data = call.from_user
 
     selected_day = callback_data.day
-    part = callback_data.body_part
 
     user = await db.get_user(user_data.id)
     lang = user.lang
+
+    # get day data and selected part 
+    days = user.trainings.days_data
+    day_data = days[selected_day]
+    part = day_data["selected_part"]
 
     if part != " ":
         # send confirm
@@ -248,13 +252,17 @@ async def confirm_body_part_for_all_days(call: CallbackQuery, callback_data: cal
     user_data = call.from_user
 
     selected_day = callback_data.day
-    part = callback_data.body_part
+    part_ind = callback_data.body_part_ind
     confirm = callback_data.confirm_use_body_part_for_all_days
 
     user = await db.get_user(user_data.id)
     lang = user.lang
     days: dict = user.trainings.days_data
     all_body_parts = user.trainings.all_body_parts
+
+    # get day data and selected part 
+    day_data = days[selected_day]
+    part = day_data["selected_part"]
 
     # edit message
     text, kb = kbs.get_day_setting_by_name("workout_body_part", selected_day, days[selected_day],  lang=lang, all_body_parts=all_body_parts, user=user)
@@ -271,13 +279,13 @@ async def confirm_body_part_for_all_days(call: CallbackQuery, callback_data: cal
             user_data.id, {"days_data": days}
         )
 
-@router.callback_query(callback_filters.UserEditDay.filter(F.body_part != " "))
+@router.callback_query(callback_filters.UserEditDay.filter(F.body_part_ind != -1))
 async def setting_day_body_part(call: CallbackQuery, callback_data: callback_filters.UserEditDay, state: FSMContext):
     message = call.message
     user_data = call.from_user
     chat_id = message.chat.id
 
-    part = callback_data.body_part
+    part_ind = callback_data.body_part_ind
     day = callback_data.day
 
     user = await db.get_user(user_data.id)
@@ -292,6 +300,9 @@ async def setting_day_body_part(call: CallbackQuery, callback_data: callback_fil
         await call.answer("")
         return
     day_data = days[day]
+    # get part name
+    all_body_parts = user.trainings.all_body_parts
+    part = all_body_parts[part_ind]["name"]    
 
     if days[day]["selected_part"] == part:
         await call.answer("")
@@ -463,7 +474,7 @@ async def setting_reps(call: CallbackQuery, callback_data: callback_filters.User
         pass 
         
         
-@router.callback_query(callback_filters.UserEditDay.filter(F.rep_name != " "))
+@router.callback_query(callback_filters.UserEditDay.filter(F.rep_name_ind != -1))
 async def setting_rep_name(call: CallbackQuery, callback_data: callback_filters.UserEditDay, state: FSMContext):
     message = call.message
     chat_id = message.chat.id
@@ -471,7 +482,7 @@ async def setting_rep_name(call: CallbackQuery, callback_data: callback_filters.
     user_data = call.from_user
 
     day = callback_data.day
-    rep_name = callback_data.rep_name
+    rep_name_ind = callback_data.rep_name_ind
 
     user = await db.get_user(user_data.id)
     if user == None:
@@ -481,6 +492,10 @@ async def setting_rep_name(call: CallbackQuery, callback_data: callback_filters.
     if days == None:
         await call.answer("")
         return
+    
+    # get rep name
+    all_reps_names = user.trainings.all_reps_names
+    rep_name = all_reps_names[rep_name_ind]["name"]
     
     # update reps
     day_data = days[day]

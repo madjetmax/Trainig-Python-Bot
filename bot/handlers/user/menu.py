@@ -32,7 +32,8 @@ async def get_user_menu(message: Message, state: FSMContext):
 
         await state.set_state(states.UserEditData)
     else:
-        await message.answer(texts.register)
+        lang = user_data.language_code
+        await message.answer(texts.register[lang])
 
 # change trainings start time
 def check_time_valid(text: str):

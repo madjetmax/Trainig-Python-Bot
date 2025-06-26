@@ -105,7 +105,7 @@ def get_body_parts(selected_part, day, all_body_parts, lang):
     collumn = 0
 
     
-    for part in all_body_parts:
+    for ind, part in enumerate(all_body_parts):
         if collumn >= max_in_row:
             rows.append(deepcopy(current_row))
             current_row = []
@@ -115,7 +115,7 @@ def get_body_parts(selected_part, day, all_body_parts, lang):
         if part["name"] == selected_part:
             text += " ✅"
         current_row.append(
-            InlineKeyboardButton(text=text, callback_data=callback_filters.UserSettingDay(body_part=part["name"], day=day).pack())
+            InlineKeyboardButton(text=text, callback_data=callback_filters.UserSettingDay(body_part_ind=ind, day=day).pack())
         )
         collumn += 1
     if current_row:
@@ -124,7 +124,7 @@ def get_body_parts(selected_part, day, all_body_parts, lang):
     if selected_part is not None:
         # add use for all days button
         rows.append(
-            [InlineKeyboardButton(text=user_texts.use_for_all_days_btn[lang], callback_data=callback_filters.UserSettingDay(use_body_part_for_all_days=True, day=day, body_part=selected_part).pack())]
+            [InlineKeyboardButton(text=user_texts.use_for_all_days_btn[lang], callback_data=callback_filters.UserSettingDay(use_body_part_for_all_days=True, day=day).pack())]
         )
     # add custom body_part button
     rows.append(
@@ -178,7 +178,7 @@ def get_reps(day, all_reps_names, lang):
     current_row = []
     collumn = 0
     
-    for rep in all_reps_names:
+    for ind, rep in enumerate(all_reps_names):
         if collumn >= max_in_row:
             rows.append(deepcopy(current_row))
             current_row = []
@@ -186,7 +186,7 @@ def get_reps(day, all_reps_names, lang):
 
         text = rep[lang]
         current_row.append(
-            InlineKeyboardButton(text=text, callback_data=callback_filters.UserSettingDay(rep_name=rep["name"], day=day).pack())
+            InlineKeyboardButton(text=text, callback_data=callback_filters.UserSettingDay(rep_name_ind=ind, day=day).pack())
         )
         collumn += 1
     if current_row:

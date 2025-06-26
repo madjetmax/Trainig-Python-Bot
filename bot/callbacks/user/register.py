@@ -282,12 +282,16 @@ async def set_body_part_for_all_days(call: CallbackQuery, callback_data: callbac
     chat_id = message.chat.id
 
     selected_day = callback_data.day
-    part = callback_data.body_part
 
     state_data = await state.get_data()
     lang = state_data["user_lang"]
 
-    if part != " ":
+    # get day data and selected part 
+    days = state_data["days"]
+    day_data = days[selected_day]
+    part = day_data["selected_part"]
+
+    if part is not None: 
         # send confirm
         text, kb = kbs.get_confirm_use_body_part_for_all_days(selected_day, part, lang)
         await message.edit_text(text, reply_markup=kb)
@@ -300,12 +304,16 @@ async def confirm_body_part_for_all_days(call: CallbackQuery, callback_data: cal
     chat_id = message.chat.id
 
     selected_day = callback_data.day
-    part = callback_data.body_part
+    part_ind = callback_data.body_part_ind
     confirm = callback_data.confirm_use_body_part_for_all_days
 
     state_data = await state.get_data()
     lang = state_data["user_lang"]
     days: dict = state_data["days"]
+
+    # get selected part
+    day_data = days[selected_day]
+    part = day_data["selected_part"]
 
     # "1" = True, "0" = False
     if confirm == "1": # check if confirm 
@@ -321,12 +329,12 @@ async def confirm_body_part_for_all_days(call: CallbackQuery, callback_data: cal
     await message.edit_text(text, reply_markup=kb)
 
 # *set body part for day
-@router.callback_query(callback_filters.UserSettingDay.filter(F.body_part != " "))
+@router.callback_query(callback_filters.UserSettingDay.filter(F.body_part_ind != -1))
 async def setting_day_body_part(call: CallbackQuery, callback_data: callback_filters.UserSettingDay, state: FSMContext):
     message = call.message
     chat_id = message.chat.id
 
-    part = callback_data.body_part
+    part_ind = callback_data.body_part_ind
     day = callback_data.day
 
     state_data = await state.get_data()
@@ -338,6 +346,11 @@ async def setting_day_body_part(call: CallbackQuery, callback_data: callback_fil
     if days is None:
         await call.answer()
         return
+    
+    # get part from ind
+    all_body_parts = state_data["all_body_parts"]
+
+    part = all_body_parts[part_ind]["name"]
     
     if days[day]["selected_part"] == part:
         await call.answer()
@@ -504,13 +517,13 @@ async def setting_reps(call: CallbackQuery, callback_data: callback_filters.User
         pass 
         
 
-@router.callback_query(callback_filters.UserSettingDay.filter(F.rep_name != " "))
+@router.callback_query(callback_filters.UserSettingDay.filter(F.rep_name_ind != -1))
 async def setting_rep_name(call: CallbackQuery, callback_data: callback_filters.UserSettingDay, state: FSMContext):
     message = call.message
     chat_id = message.chat.id
 
     day = callback_data.day
-    rep_name = callback_data.rep_name
+    rep_name_ind = callback_data.rep_name_ind
 
     state_data = await state.get_data()
     
@@ -521,6 +534,10 @@ async def setting_rep_name(call: CallbackQuery, callback_data: callback_filters.
         return
     
     lang = state_data["user_lang"]
+
+    # get rep name 
+    all_reps_names = state_data["all_reps_names"]
+    rep_name = all_reps_names[rep_name_ind]["name"]
     
     # udpate reps
     day_data = days[day]

@@ -2,19 +2,19 @@ from aiogram.filters.callback_data import CallbackData
 
 # *user
 # *training setup
-class UserChooseLang(CallbackData, prefix="user_choose_lang"):
+class UserChooseLang(CallbackData, prefix="u_choose_lang"):
     lang: str
 
-class UserConfirmSetup(CallbackData, prefix="user_confirm_setup"):
+class UserConfirmSetup(CallbackData, prefix="u_confirm_setup"):
     data: str
 
-class UserChooseDay(CallbackData, prefix="user_choose_day"):
+class UserChooseDay(CallbackData, prefix="u_choose_day"):
     day: str
 
-class UserSettingDay(CallbackData, prefix="user_setting_day"):
+class UserSettingDay(CallbackData, prefix="u_setting_day"):
     day: str = " "
     setting: str = " "
-    body_part: str = " "
+    body_part_ind: int = -1
     
     add_custom_body_part: bool = False
     add_custom_rep_name: bool = False
@@ -26,20 +26,20 @@ class UserSettingDay(CallbackData, prefix="user_setting_day"):
     confirm_use_reps_for_all_days: str = " "
 
     reps_action: str = " "
-    rep_name: str = " "
+    rep_name_ind: int = -1
 
 # for navigation
-class UserConfirmSetupNavigate(CallbackData, prefix="user_confirm_navigate"):
+class UserConfirmSetupNavigate(CallbackData, prefix="u_confirm_navigate"):
     kb_num: int = -1
     to: str = " "
     day: str = " "
 
 # *edit user training
-class UserEditTrainingConfirm(CallbackData, prefix="user_edit_training_confirm"):
+class UserEditTrainingConfirm(CallbackData, prefix="u_edit_training_confirm"):
     data: str
 
 # *user menu and edit data
-class UserEditData(CallbackData, prefix="user_edit_data"):
+class UserEditData(CallbackData, prefix="u_edit_data"):
     to: str = " "
 
     back_to_day: str = " "
@@ -49,10 +49,10 @@ class UserEditData(CallbackData, prefix="user_edit_data"):
 
     set_lang: str = " "
 
-class UserEditDay(CallbackData, prefix="user_edit_day"):
+class UserEditDay(CallbackData, prefix="u_edit_day"):
     day: str = " "
     setting: str = " "
-    body_part: str = " "
+    body_part_ind: int = -1
 
     add_custom_body_part: bool = False
     add_custom_rep_name: bool = False
@@ -64,33 +64,33 @@ class UserEditDay(CallbackData, prefix="user_edit_day"):
     confirm_use_reps_for_all_days: str = " "
 
     reps_action: str = " "
-    rep_name: str = " "
+    rep_name_ind: int = -1
 
 # *user trainig
-class UserStartTraining(CallbackData, prefix="user_start_trainig"):
+class UserStartTraining(CallbackData, prefix="u_start_trainig"):
     data: str
 
-class UserNavigateTrainingStates(CallbackData, prefix="user_navigate_training"):
+class UserNavigateTrainingStates(CallbackData, prefix="u_navigate_training"):
     data: str
 
-class UserControlTraining(CallbackData, prefix="user_control_training"):
+class UserControlTraining(CallbackData, prefix="u_control_training"):
     data: str
 
-class UserBreakControll(CallbackData, prefix="user_break_controll"):
+class UserBreakControll(CallbackData, prefix="u_break_controll"):
     action: str
 
 # other day plan training
-class UserStartOtherDayPlanTraining(CallbackData, prefix="user_start_od_trainig"):
+class UserStartOtherDayPlanTraining(CallbackData, prefix="u_start_od_trainig"):
     data: str
 
-class UserSelectDayPlanTrainig(CallbackData, prefix="user_select_od_training_plan"):
+class UserSelectDayPlanTrainig(CallbackData, prefix="u_select_od_training_plan"):
     day_name: str = ' '
     get_plan: bool = False
 
     back_to_day: str = " "
 
 # *finished trainigs list
-class UserAddMoreFT(CallbackData, prefix="user_add_more_ft"):
+class UserAddMoreFT(CallbackData, prefix="u_add_more_ft"):
     offset: int
     start: int
     
