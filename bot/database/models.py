@@ -96,7 +96,6 @@ class UserStats(Base):
     aura_reduced_on_training_skip: Mapped[int] = mapped_column(Integer, nullable=True)
 
 
-
 # TODO bot and admin
 class AdminChatting(Base):
     __tablename__ = "admin_chatting"

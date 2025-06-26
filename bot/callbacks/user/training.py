@@ -14,7 +14,7 @@ from keyboards.user import training as kbs
 from texts import user as texts
 import database as db
 from database.models import User, FinishedUserTraining, UserTrainings
-from training_timer import Timer, timers
+from utils.training_timer import Timer, timers
 
 # aura
 from utils.user_aura import get_aura

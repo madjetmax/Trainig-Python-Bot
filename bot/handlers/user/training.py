@@ -14,7 +14,7 @@ from scheduler import user as schedule_manager
 
 from texts import user as texts
 from states import user as states
-from training_timer import Timer, timers
+from utils.training_timer import Timer, timers
 
 router = Router()
 
