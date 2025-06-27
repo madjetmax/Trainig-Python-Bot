@@ -6,9 +6,10 @@ from config import *
 timer_tasks = {}
 timers = {} # user_id: Timer() object
 
-class Timer():
+class Timer:
     """takes user_id and max_time (in seconds)"""
     def __init__(self, user_id, max_time=0):
+
         self.max_time = max_time # seconds
         self.time = max_time # seconds
         self.start_time = 0

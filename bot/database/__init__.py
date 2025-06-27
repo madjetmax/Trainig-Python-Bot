@@ -8,9 +8,11 @@ import datetime
 from .engine import session_maker
 from .models import User, UserTrainings, FinishedUserTraining, UserStats
 
-# *user
+from utils import user_aura as user_aura_manager
 
+# *user
 USER_OPTIONS = (joinedload(User.trainings), joinedload(User.finished_trainings), joinedload(User.stats))
+
 async def create_user(user_id, user_name, lang, db_session=None) -> User:
     if db_session == None:
         db_session = session_maker()
@@ -176,7 +178,7 @@ async def create_user_fihished_trainig(user_id, data: dict, db_session=None) -> 
     full_training_time = get_clear_time(training_hours, training_minutes, training_seconds)
     
     # aura
-    aura_got = 10 / (data["all_reps_count"] - data["reps_finished"] + 1) * (data["all_reps_count"] / 10) # aura based on finished and all reps count. PS maybe I will change it
+    aura_got = user_aura_manager.get_aura(data["all_reps_count"], data["reps_finished"])
 
     if db_session == None:
         db_session = session_maker()
