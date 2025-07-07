@@ -93,13 +93,40 @@ class UserSelectDayPlanTrainig(CallbackData, prefix="u_select_od_training_plan")
 class UserAddMoreFT(CallbackData, prefix="u_add_more_ft"):
     offset: int
     start: int
-    
+
+# *user admin message
+class UserAdminMessage(CallbackData, prefix="u_admin_message"):
+    data: str = " " 
+
+class UserControllAdminMessage(CallbackData, prefix="u_ctrl_admin_msg"):
+    action: str
 
 # * admin
 # * menu, edit data manage users etc
 class AdminMenu(CallbackData, prefix="admin_menu"):
     to: str = " "
 
-class ComtrolUser(CallbackData, prefix="controll_user"):
+class AdminAddMoreAM(CallbackData, prefix="a_add_more_dm"):
+    offset: int
+    start: int
+
+class ControlUser(CallbackData, prefix="controll_user"):
     user_id: int
     action: str
+
+# *admin user message
+class AdminUserMessage(CallbackData, prefix="a_u_msg_ctrl"):
+    user_id: int
+    action: str
+    admin_message_id: int = -1
+
+class AdminConfrimUserMessagesBlock(CallbackData, prefix="a_u_block_msgs"):
+    user_id: int
+    confirm_block_messages: bool = False
+    confirm_unblock_messages: bool = False
+    cancel: bool = False
+    admin_message_id: int = -1
+
+# sending message
+class AdminCancelSendMessage(CallbackData, prefix="a_cancel_send_msg"):
+    cancel: bool

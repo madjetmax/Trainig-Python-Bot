@@ -267,7 +267,7 @@ async def get_finished_trainings(message: Message):
         offset = 5
         
         # sort trainins by date
-        finished_trainings = sorted(user.finished_trainings[:offset], key=sort_finished_trainings)
+        finished_trainings = sorted(user.finished_trainings, key=sort_finished_trainings)[:offset]
         for i, f_t in enumerate(finished_trainings):
             kb = None
             # add keyboard if message is the last

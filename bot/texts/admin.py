@@ -38,6 +38,39 @@ navigation_title = {
 }
 
 
+# chatting with user
+to_admin_message_text = {
+    "en": """
+ID: {message_id},
+USER ID: {from_user_id},
+USER NAME: {from_user_name},
+DATE: {date_sent},
+TEXT: {text}
+    """,
+    "uk": """
+ID: {message_id},
+ID КОРИСТУВАЧА: {from_user_id},
+ІМ'Я КОРИСТУВАЧА: {from_user_name},
+ДАТА ВІДПРАВКИ: {date_sent},
+ТЕКСТ ПОВІДОМЛЕННЯ: {text}
+    """,
+}
+
+confirm_block_user_messages_sending_title = {
+    "en": "Do you realy want to block message for {user_name}?",
+    "uk": "Ви дійсно хочете заблокувати повідомлення для {user_name}?",
+}
+
+confirm_unblock_user_messages_sending_title = {
+    "en": "Do you realy want to unblock message for {user_name}?",
+    "uk": "Ви дійсно хочете розблокувати повідомлення для {user_name}?",
+}
+
+
+empty_admin_messages = {
+    "en": "No admin messages yet",
+    "uk": "Немає повідомлень користувачів",
+}
 
 # buttons
 trans_days_of_week = {
@@ -59,6 +92,30 @@ trans_days_of_week = {
         "sat": "Субота",
         "sun": "Неділя",
     }, 
+}
+
+answer_btn = {
+    "en": "Answer",
+    "uk": "Відповісти",
+}
+
+block_user_messages_send_btn = {
+    "en": "Block sending messages",
+    "uk": "Заблокувати можливість відправки повідомлень",
+}
+
+unblock_user_messages_send_btn = {
+    "en": "Unblock sending messages",
+    "uk": "Розблокувати можливість відправки повідомлень",
+}
+
+block_btn = {
+    "en": 'Block',
+    "uk": "Заблокувати"
+}
+unblock_btn = {
+    "en": 'Unblock',
+    "uk": "Розблокувати"
 }
 
 back_btn = {

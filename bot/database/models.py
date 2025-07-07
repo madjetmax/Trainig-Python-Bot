@@ -13,20 +13,22 @@ from zoneinfo import ZoneInfo
 base_time_zone = ZoneInfo(MODELS_TIME_ZONE)
 
 def now() -> datetime.datetime:
-    return datetime.datetime.now(base_time_zone)
+    date = datetime.datetime.now(base_time_zone)
+    return date
 
 class Base(DeclarativeBase):
-    created: Mapped[DateTime] = mapped_column(DateTime(True), default=now())
-    updated: Mapped[DateTime] = mapped_column(DateTime(True), default=now(), onupdate=now())
+    created: Mapped[DateTime] = mapped_column(DateTime(True), default=now)
+    updated: Mapped[DateTime] = mapped_column(DateTime(True), default=now, onupdate=now)
     
-
 # *user
 class User(Base):
     __tablename__ = "user"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
+    # status and rights
     status: Mapped[str] = mapped_column(Text)
+    can_send_messages_to_admins = mapped_column(Boolean, default=True, nullable=True)
 
     lang: Mapped[str] = mapped_column(String(2), nullable=True, default="en")
 
@@ -35,15 +37,12 @@ class User(Base):
     finished_trainings: Mapped[List["FinishedUserTraining"]] = relationship(back_populates="user", cascade="all, delete-orphan", passive_deletes=True)
     stats: Mapped[List["UserStats"]] = relationship(back_populates="user", cascade="all, delete-orphan", passive_deletes=True)
     
-    admin_chatting: Mapped[List["AdminChatting"]] = relationship(back_populates="user", cascade="all, delete-orphan", passive_deletes=True)
-
     # aura
     aura: Mapped[float] = mapped_column(Float, default=0)
 
     def __str__(self):
         data = f"{self.id}, {self.name}, {self.status}, {self.aura}"
         return data
-    
     
 class UserTrainings(Base):
     __tablename__ = "user_trainings"
@@ -102,11 +101,10 @@ class AdminChatting(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
-    # for related user
-    user_id: Mapped[int] = mapped_column(ForeignKey("user.id", ondelete="CASCADE"))
-    user: Mapped["User"] = relationship(back_populates="admin_chatting")
+    # user and to_user
+    from_user_id: Mapped[int] = mapped_column(BigInteger)
+    to_user_id: Mapped[int] = mapped_column(BigInteger)
 
     # data
     message: Mapped[str] = mapped_column(Text)
     photo_path: Mapped[str] = mapped_column(String(200), nullable=True) # user can send photo
-    

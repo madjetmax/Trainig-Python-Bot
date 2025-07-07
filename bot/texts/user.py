@@ -22,6 +22,28 @@ greate = {
     "uk": "Привіт {name}, Я - бот для тренувань\n\nВиберіть Мову",
 }
 
+help_command = {
+    "en": """
+/start - set up trainings
+/me - your profile menu and settings
+/start_training - start training
+/reps - get list of current trainings reps and breaks
+/rep - get current rep or break timer
+/f_t - get finished trainings list
+/admin_message - if you have some questions or propositions, you can send message to the administration
+    """,
+    "uk": """
+/start - створити тренування
+/me - меню вашого профіллю та наліштування
+/start_training - почати тренування
+/reps - список підходів та перерв поточного тренування
+/rep - поточний підхід або таймер перерви
+/f_t - список заваршених тренувань
+/admin_message - якщо ви маєте якісь питання або пропозиції, ви можете надіслати повідомлення адміністрації
+    """,
+
+}
+
 start_training_set_up = {
     "en": "Do you want set up you trainnings?",
     "uk": "Хочете пройти швидке налаштування тренувань?",
@@ -320,6 +342,43 @@ aura_reduce_result = {
     "uk": "Aura до цього: {aura_before}\nAura зменшено: {aura_reduce}\nВаша Aura: {current_aura}",
 }
 
+# message to admin
+enter_admin_message_title = {
+    "en": "Enter message text",
+    "uk": "Введіть тескст повідомлення",
+}
+
+sending_to_andmin = {
+    "en": "Sendinig message...",
+    "uk": "Відправка повідомлення...",
+}
+
+sent_to_admin = {
+    "en": "Message was sent!",
+    "uk": "Повідомлення відправлено!",
+}
+
+failed_send_to_admin = {
+    "en": "Failed to send message",
+    "uk": "Не вдалося відправити подвідомлення",
+}
+
+title_empty = {
+    "en": "Photo title is empty!",
+    "uk": "Текст фото порожній!",
+}
+
+
+from_admin_text = {
+    "en": """
+DATE: {date_sent}
+TEXT: {text}
+    """,
+    "uk": """
+ДАТА ВІДПРАВКИ: {date_sent}
+ТЕКСТ ПОВІДОМЛЕННЯ: {text}
+    """,
+}
 
 # buttons
 trans_days_of_week = {
@@ -341,6 +400,11 @@ trans_days_of_week = {
         "sat": "Субота",
         "sun": "Неділя",
     }, 
+}
+
+answer_btn = {
+    "en": "Answer",
+    "uk": "Відповісти",
 }
 
 back_btn = {
@@ -380,7 +444,7 @@ get_training_plan_btn = {
 
 add_more_btn = {
     "en": "Add more",
-    "en": "Додати ще",
+    "uk": "Додати ще",
 }
 
 workout_body_part_setting_btn = {

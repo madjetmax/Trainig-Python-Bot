@@ -17,7 +17,6 @@ class HandlersMiddleware(BaseMiddleware):
             return await handler(event, data)
         return 
 
-
 # for callbacks
 class CallbacksMiddleware(BaseMiddleware):
     # maybe i will use it, but not it's useless :(
@@ -28,7 +27,6 @@ class CallbacksMiddleware(BaseMiddleware):
         data: Dict[str, Any]
     ) -> Any:
         # check if user is admin       
-        print(111) 
         if event.from_user.id in ADMINS:
             return await handler(event, data)
         return 

@@ -6,7 +6,7 @@ from sqlalchemy.exc import NoResultFound
 import datetime
 
 from .engine import session_maker
-from .models import User, UserTrainings, FinishedUserTraining, UserStats
+from .models import User, UserTrainings, FinishedUserTraining, UserStats, AdminChatting
 
 from utils import user_aura as user_aura_manager
 
@@ -227,3 +227,54 @@ async def create_user_stats(user_id, data, db_session=None):
 
         await db_session.commit()
         return new_stats
+
+
+# *admin message
+async def create_admin_message(from_user_id, to_user_id, text, photo_path, db_session=None):
+    if db_session is None:
+        db_session = session_maker()
+    async with db_session:
+        # creating object from data
+        new_admin_message = AdminChatting(
+            from_user_id=from_user_id, 
+            to_user_id=to_user_id, # if to_user_id == -1 = all admins
+            message=text,
+            photo_path=photo_path
+        )
+        # save
+        db_session.add(new_admin_message)
+
+        await db_session.commit()
+
+        return new_admin_message
+    
+async def get_admin_message(message_id: int, db_session = None) -> list[AdminChatting]:
+    if db_session == None:
+        db_session = session_maker()
+
+    async with db_session:
+        query = select(AdminChatting).where(AdminChatting.id == message_id)
+        data = await db_session.execute(query)
+        
+        try:
+            return data.unique().scalars().one()
+        except NoResultFound:
+            return None
+        
+async def get_all_admin_messages(db_session = None):
+    if db_session == None:
+        db_session = session_maker()
+
+    async with db_session:
+        query = select(AdminChatting)
+        data = await db_session.execute(query)
+        return data.unique().scalars().all()
+    
+async def get_admin_messages_from_users(db_session = None):
+    if db_session == None:
+        db_session = session_maker()
+
+    async with db_session:
+        query = select(AdminChatting).where(AdminChatting.from_user_id != -1)
+        data = await db_session.execute(query)
+        return data.unique().scalars().all()

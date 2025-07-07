@@ -73,3 +73,8 @@ class UserEditData(StatesGroup):
 
     # for deleting messages
     messages_to_delete = State() # ids
+
+# *user message to admin
+class UserAdminMessage(StatesGroup):
+    on_admin_message = State() # bool
+    text = State()

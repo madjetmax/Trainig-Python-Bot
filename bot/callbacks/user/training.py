@@ -850,7 +850,7 @@ async def add_more_ft(call: CallbackQuery, callback_data: callback_filters.UserA
 
     if user:
         # sort trainins by date
-        finished_trainings = sorted(user.finished_trainings[start:start+offset] , key=sort_finished_trainings)
+        finished_trainings = sorted(user.finished_trainings, key=sort_finished_trainings)[start:start+offset]
 
         global_i = start
         for i, f_t in enumerate(finished_trainings):
