@@ -1,6 +1,7 @@
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-from texts import admin as texts
+
+import datetime
 from zoneinfo import ZoneInfo
 
 from config import *
@@ -11,6 +12,7 @@ from .. import callback_filters
 import database as db
 from database.models import User, UserTrainings, FinishedUserTraining, AdminChatting
 
+from texts import admin as texts
 from texts import user as user_texts
 
 admin_menu = {
@@ -32,6 +34,9 @@ admin_menu = {
     ],
 }
 
+def set_timezone(date: datetime.datetime) -> datetime.datetime:
+    tz = ZoneInfo(DATETIME_TIME_ZONE)
+    return date.astimezone(tz)
 
 async def get_admin_menu(to=None, user_data=None, lang="", **kwargs) -> tuple[str, InlineKeyboardMarkup, list]:
     """returns text, kb, messages (list[tuple[str, InlineKeyboardMarkup]]) from to (page name)  takes additional args to get specific data, user from database"""
@@ -104,7 +109,7 @@ async def get_admin_menu(to=None, user_data=None, lang="", **kwargs) -> tuple[st
                     message_id=admin_message.id,
                     from_user_id=message_user.id,
                     from_user_name=message_user.name,
-                    date_sent=date_sent,
+                    date_sent=set_timezone(date_sent),
                     text=admin_message.message
                 )
                 block_msgs: bool = message_user.can_send_messages_to_admins

@@ -110,13 +110,15 @@ async def get_new_start_time(message: Message, dispatcher: Dispatcher, state: FS
 
         await asyncio.sleep(1)
         # send user menu from trainings page
-        text, kb, _ = await kbs.get_user_menu("get_edit_trainings", user_data, lang=lang)
+        text, kb, _ = await kbs.get_user_menu("get_edit_trainings", user_data, lang=lang, user=user)
         
         await message.answer(text, reply_markup=kb)
     else:
-        # get state
-        state_data = await state.get_data()
-        lang = state_data["user_lang"]
+        # get user and lang
+        user = await db.get_user(user_data.id)
+        if user == None:
+            return
+        lang = user.lang
 
         await message.answer(texts.invalid_time[lang])
 

@@ -3,6 +3,7 @@ from aiogram.types import CallbackQuery, Message
 from config import *
 from aiogram.exceptions import TelegramBadRequest
 
+import datetime
 from zoneinfo import ZoneInfo
 # states
 from aiogram.fsm.context import FSMContext
@@ -24,6 +25,12 @@ router.callback_query.middleware.register(CallbacksMiddleware())
 async def delete_messages(bot: Bot, chat_id, messages):
     if messages:
         await bot.delete_messages(chat_id, messages)
+
+
+def set_timezone(date: datetime.datetime) -> datetime.datetime:
+    tz = ZoneInfo(DATETIME_TIME_ZONE)
+    return date.astimezone(tz)
+
 
 # *menu navigation
 @router.callback_query(callback_filters.AdminMenu.filter())
@@ -138,10 +145,11 @@ async def add_more_admin_messages(call: CallbackQuery, callback_data: callback_f
             message_id=admin_message.id,
             from_user_id=message_user.id,
             from_user_name=message_user.name,
-            date_sent=date_sent,
+            date_sent=set_timezone(date_sent),
             text=admin_message.message
         )
-        message_kb = user_message_kbs.get_user_message_controll(admin_message.id, admin_message.from_user_id, lang)
+        block_msgs: bool = message_user.can_send_messages_to_admins
+        message_kb = user_message_kbs.get_user_message_controll(block_msgs, admin_message.id, admin_message.from_user_id, lang)
         # send and add message to messages list
         if admin_message.photo_path:
             msg = await message.answer_photo(photo=admin_message.photo_path, caption=message_text, reply_markup=message_kb)

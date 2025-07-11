@@ -35,3 +35,17 @@ async def get_main_menu(message: Message, state: FSMContext):
     # send message and kb
     text, kb, _ = await kbs.get_admin_menu("main", user_data, lang)
     await message.answer(text, reply_markup=kb)
+
+async def db_response():
+    messages = await db.get_all_admin_messages()
+    await asyncio.sleep(1)
+
+@router.message(Command("test"))
+async def start_test_performance(message: Message):
+    await message.answer("started")
+    
+    async with asyncio.TaskGroup() as tg:
+        for i in range(200):
+            tg.create_task(db_response())
+            print("created")
+        

@@ -7,6 +7,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from database.models import User, UserTrainings, FinishedUserTraining
 
 from config import *
+from . import register as register_kbs
 from . import training as trainings_kbs
 
 import database as db
@@ -120,19 +121,23 @@ async def get_user_menu(to=None, user_data=None, lang="", **kwargs) -> tuple[str
 
     # edit trainings
     if to == "get_edit_trainings":
-        text = user_texts.edit_trainings_menu[lang]
+        user: User = kwargs["user"]
+        if user.trainings is None:
+            kb = register_kbs.confirm_setup(lang)
+            text = user_texts.start_training_set_up[lang].format(name=user.name)
+        else:
+            text = user_texts.edit_trainings_menu[lang]
 
-        buttons = user_menu["get_edit_trainings"]
-        # add buttons to kb
-        for button in buttons:
-            calldata = callback_filters.UserEditData(to=button["to"]).pack()
-            kb.row(
-                InlineKeyboardButton(text=button["text"][lang], callback_data=calldata)
-            )
+            buttons = user_menu["get_edit_trainings"]
+            # add buttons to kb
+            for button in buttons:
+                calldata = callback_filters.UserEditData(to=button["to"]).pack()
+                kb.row(
+                    InlineKeyboardButton(text=button["text"][lang], callback_data=calldata)
+                )
 
     if to == "get_edit_trainings_days":
         text = user_texts.edit_selected_days_menu[lang]
-
         # getting list of days names from **kwargs, if not found, from User.trainings.days_data
         selected_days = kwargs.get("selected_days")
         if selected_days == None:
@@ -230,7 +235,9 @@ async def get_user_menu(to=None, user_data=None, lang="", **kwargs) -> tuple[str
                 (f_t_text, f_t_kb)
             )
 
-    return text, kb.as_markup(), messages
+    if isinstance(kb, InlineKeyboardBuilder):
+        kb = kb.as_markup()
+    return text, kb, messages
 
 def sort_finished_trainings(x: FinishedUserTraining) -> int:
     # getting seconds from datetime to sort

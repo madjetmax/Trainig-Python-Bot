@@ -2,6 +2,8 @@ from aiogram import Router, F, Bot
 from aiogram.types import CallbackQuery, Message
 from config import *
 from aiogram.exceptions import TelegramBadRequest
+import datetime
+from zoneinfo import ZoneInfo
 
 # states
 from aiogram.fsm.context import FSMContext
@@ -19,6 +21,10 @@ import database as db
 
 router = Router()
 
+def set_timezone(date: datetime.datetime) -> datetime.datetime:
+    tz = ZoneInfo(DATETIME_TIME_ZONE)
+    return date.astimezone(tz)
+
 @router.callback_query(callback_filters.AdminUserMessage.filter(F.action == "answer"))
 async def get_cancel_admin_message(call: CallbackQuery, callback_data: callback_filters.AdminUserMessage, state: FSMContext):
     message = call.message
@@ -28,6 +34,16 @@ async def get_cancel_admin_message(call: CallbackQuery, callback_data: callback_
 
     admin = await db.get_user(admin_data.id)
     lang = admin.lang
+
+    # get state and check if on training
+    state_data = await state.get_data()
+    if state_data.get("timer"):
+        # answer cant user message while training
+        await call.answer(
+            texts.cant_user_messages_while_training[lang]
+        )
+        return
+
     # get kb and send message
     kb = kbs.get_cancel_message_to_user(lang)
     await message.answer(user_texts.enter_admin_message_title[lang], reply_markup=kb)
@@ -96,7 +112,7 @@ async def confirm_block_messages_send(call: CallbackQuery, callback_data: callba
         message_id=admin_message.id,
         from_user_id=admin_message.from_user_id,
         from_user_name=user.name,
-        date_sent=admin_message.created,
+        date_sent=set_timezone(admin_message.created),
         text=admin_message.message
     )
 
@@ -170,7 +186,7 @@ async def confirm_unblock_messages_send(call: CallbackQuery, callback_data: call
         message_id=admin_message.id,
         from_user_id=admin_message.from_user_id,
         from_user_name=user.name,
-        date_sent=admin_message.created,
+        date_sent=set_timezone(admin_message.created),
         text=admin_message.message
     )
 
@@ -216,7 +232,7 @@ async def confirm_block_messages_send(call: CallbackQuery, callback_data: callba
         message_id=admin_message.id,
         from_user_id=admin_message.from_user_id,
         from_user_name=user.name,
-        date_sent=admin_message.created,
+        date_sent=set_timezone(admin_message.created),
         text=admin_message.message
     )
     # get it from user.can_send_messages_to_admins to pass in to kb get funk as blokc_msgs

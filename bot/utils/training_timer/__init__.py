@@ -33,7 +33,7 @@ class Timer:
                 await asyncio.sleep(TIMER_UPDATE_DALAY)
                 await self.update_message()
         except Exception as ex:
-            print(ex)
+            print("timer error: {ex}")
 
     async def on_end_task(self):
         await asyncio.sleep(self.time) 

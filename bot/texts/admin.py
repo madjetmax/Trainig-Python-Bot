@@ -72,6 +72,11 @@ empty_admin_messages = {
     "uk": "Немає повідомлень користувачів",
 }
 
+cant_user_messages_while_training = {
+    "en": "Cant chat with user while training",
+    "uk": 'Не можна відправити повідомлення користувачу під час тренування',
+}
+
 # buttons
 trans_days_of_week = {
     "en": {

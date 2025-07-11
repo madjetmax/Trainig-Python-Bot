@@ -368,6 +368,10 @@ title_empty = {
     "uk": "Текст фото порожній!",
 }
 
+cant_admin_messages_while_training = {
+    "en": "Cant chat with admin while training",
+    "uk": 'Не можна відправити повідомлення адміну під час тренування',
+}
 
 from_admin_text = {
     "en": """

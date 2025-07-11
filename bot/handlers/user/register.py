@@ -2,7 +2,6 @@ from aiogram import Router, F, Bot, Dispatcher
 from aiogram.types import Message
 from aiogram.filters import CommandStart, Command
 from aiogram.fsm.context import FSMContext
-import asyncio
 
 from config import *
 
@@ -204,16 +203,25 @@ async def get_start_time(message: Message, dispatcher: Dispatcher, state: FSMCon
             user_data.id, state_data, hours, minutes
         )
 
-        # start schedule job
+        # start schedule jobs
         days = list(state_data["days"].keys())
         
+        # training remind
         schedule_manager.create_training_remind(
             bot, dispatcher, 
             user_data.id, 
             days, 
-            hours, minutes
+            hours, minutes 
         )
-
+        # skipped training remind
+        schedule_manager.create_skipped_training_remind(
+            bot, dispatcher, 
+            user_data.id, 
+            ALL_WEEK_DAYS, 
+            SCHD_SEND_TRAINIG_SKIPPED_HOURS,
+            SCHD_SEND_TRAINIG_SKIPPED_MINUTES,
+        )
+        # clear state
         await state.clear()
         
     else: # answer if time is invalid

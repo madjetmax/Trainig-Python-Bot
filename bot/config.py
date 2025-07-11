@@ -49,7 +49,7 @@ SCHD_SEND_TRAINIG_SKIPPED_MINUTES = 0
 
 # *training timers
 TIMER_UPDATE_DALAY = 3 # seconds 
-WARMUP_TIME = 4 * 60 # seconds
+WARMUP_TIME = 3 * 60 # seconds
 
 # *training reps names and body parts
 ALL_BODY_PARTS = [

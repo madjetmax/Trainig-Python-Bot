@@ -21,6 +21,17 @@ router.callback_query.middleware.register(admin_message_middleware)
 async def get_cancel_admin_message(call: CallbackQuery, state: FSMContext):
     message = call.message
     user_data = call.from_user
+    
+    # get state and check if on training
+    state_data = await state.get_data()
+    if state_data.get("timer"):
+        # answer cant admin message while training
+        user = await db.get_user(user_data.id)
+        lang = user.lang
+        await message.answer(
+            texts.cant_admin_messages_while_training[lang]
+        )
+        return
 
     # delete message and clear state
     await message.delete()
@@ -34,6 +45,16 @@ async def get_answer_to_admin(call: CallbackQuery, state: FSMContext):
 
     user = await db.get_user(user_data.id)
     lang = user.lang
+
+    # get state and check if on training
+    state_data = await state.get_data()
+    if state_data.get("timer"):
+        # answer cant admin message while training
+        await message.answer(
+            texts.cant_admin_messages_while_training[lang]
+        )
+        return
+
     # send message and kb
     kb = kbs.get_cancel_admin_message(lang)
     await message.answer(texts.enter_admin_message_title[lang], reply_markup=kb)

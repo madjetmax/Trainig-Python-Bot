@@ -36,12 +36,10 @@ async def user_menu_switch_day(call: CallbackQuery, callback_data: callback_filt
 
     lang = user.lang
     if state_data.get('timer'):
-
         await call.answer(texts.cant_edit_at_training[lang])
         return
 
     switch_day = callback_data.switch_day
-    
 
     # get and update selected days
     selected_days = user.trainings.days_data
@@ -233,6 +231,11 @@ async def set_body_part_for_all_days(call: CallbackQuery, callback_data: callbac
     user = await db.get_user(user_data.id)
     lang = user.lang
 
+    state_data = await state.get_data()
+    if state_data.get('timer'):
+        await call.answer(texts.cant_edit_at_training[lang])
+        return
+
     # get day data and selected part 
     days = user.trainings.days_data
     day_data = days[selected_day]
@@ -257,6 +260,12 @@ async def confirm_body_part_for_all_days(call: CallbackQuery, callback_data: cal
 
     user = await db.get_user(user_data.id)
     lang = user.lang
+
+    state_data = await state.get_data()
+    if state_data.get('timer'):
+        await call.answer(texts.cant_edit_at_training[lang])
+        return
+
     days: dict = user.trainings.days_data
     all_body_parts = user.trainings.all_body_parts
 
@@ -291,6 +300,12 @@ async def setting_day_body_part(call: CallbackQuery, callback_data: callback_fil
     user = await db.get_user(user_data.id)
     if user == None:
         await call.answer() 
+    lang = user.lang
+
+    state_data = await state.get_data()
+    if state_data.get('timer'):
+        await call.answer(texts.cant_edit_at_training[lang])
+        return
 
     all_body_parts = user.trainings.all_body_parts
 
@@ -312,13 +327,11 @@ async def setting_day_body_part(call: CallbackQuery, callback_data: callback_fil
     day_data["selected_part"] = part
 
     # edit message
-    text, kb = kbs.get_day_setting_by_name("workout_body_part", day, day_data,  lang=user.lang, all_body_parts=all_body_parts, user=user)
+    text, kb = kbs.get_day_setting_by_name("workout_body_part", day, day_data,  lang=lang, all_body_parts=all_body_parts, user=user)
     await message.edit_text(text, reply_markup=kb)
     
     # update user trainings
     await db.udpate_user_trainings(user_data.id, {"days_data": days})
-
-    state_data = await state.get_data()
 
     # delete message title
     try:
@@ -337,29 +350,23 @@ async def setting_custom_body_part(call: CallbackQuery, callback_data: callback_
 
     selected_day = callback_data.day
 
-    state_data = await state.get_data()
-
+    
     # user
     user = await db.get_user(user_data.id)
     if user == None:
         await call.answer() 
     lang = user.lang
 
+    state_data = await state.get_data()
+    if state_data.get('timer'):
+        await call.answer(texts.cant_edit_at_training[lang])
+        return
+
     msg = await message.answer(texts.new_body_part_name[lang])
 
     # get and add message to delete
     messages_to_delete: list = state_data["messages_to_delete"]
     messages_to_delete.append(msg.message_id)
-
-    # set state
-    await state.set_state(states.UserEditData.new_body_part)
-    
-    # update state 
-    await state.update_data(
-        selected_day=selected_day,
-        message_to_update=message.message_id,
-        message_title_to_delete=msg.message_id
-    )
 
     # delete message title
     try:
@@ -369,6 +376,13 @@ async def setting_custom_body_part(call: CallbackQuery, callback_data: callback_
     except Exception as ex:
         pass 
         
+    # set and update state
+    await state.set_state(states.UserEditData.new_body_part)
+    await state.update_data(
+        selected_day=selected_day,
+        message_to_update=message.message_id,
+        message_title_to_delete=msg.message_id
+    )
 
 # *resp
 # confirm
@@ -383,6 +397,11 @@ async def confirm_reps_for_all_days(call: CallbackQuery, callback_data: callback
 
     user = await db.get_user(user_data.id)
     lang = user.lang
+
+    state_data = await state.get_data()
+    if state_data.get('timer'):
+        await call.answer(texts.cant_edit_at_training[lang])
+        return
 
     # getting days and their data
     days: dict = user.trainings.days_data
@@ -416,6 +435,14 @@ async def setting_reps(call: CallbackQuery, callback_data: callback_filters.User
     user = await db.get_user(user_data.id)
     if user == None:
         await call.answer() 
+    
+    lang = user.lang
+
+    state_data = await state.get_data()
+    if state_data.get('timer'):
+        await call.answer(texts.cant_edit_at_training[lang])
+        return
+
     all_reps_names = user.trainings.all_reps_names
 
     days = user.trainings.days_data
@@ -429,7 +456,7 @@ async def setting_reps(call: CallbackQuery, callback_data: callback_filters.User
 
     if action == "add_rep":
         # send new rep name setting 
-        text, kb = kbs.get_rep_name_setting(day, all_reps_names, user.lang)
+        text, kb = kbs.get_rep_name_setting(day, all_reps_names, lang)
         await message.edit_text(text, reply_markup=kb)
 
     else:
@@ -455,16 +482,15 @@ async def setting_reps(call: CallbackQuery, callback_data: callback_filters.User
         
         if action == "user_for_all_days":
             # send confirm message
-            text, kb = kbs.get_confirm_use_reps_for_all_days(day, user.lang)
+            text, kb = kbs.get_confirm_use_reps_for_all_days(day, lang)
             await message.edit_text(text, reply_markup=kb)
             return
         
         # edit message after setting
-        text, kb = kbs.get_day_setting_by_name("reps", day, day_data, lang=user.lang)
+        text, kb = kbs.get_day_setting_by_name("reps", day, day_data, lang=lang)
         await message.edit_text(text, reply_markup=kb)
         await db.udpate_user_trainings(user_data.id, {'days_data': days})
     
-    state_data = await state.get_data()
     # delete message title
     try:
         await message.bot.delete_message(
@@ -487,6 +513,13 @@ async def setting_rep_name(call: CallbackQuery, callback_data: callback_filters.
     user = await db.get_user(user_data.id)
     if user == None:
         await call.answer() 
+    lang = user.lang
+
+    state_data = await state.get_data()
+    if state_data.get('timer'):
+        await call.answer(texts.cant_edit_at_training[lang])
+        return
+    
     days = user.trainings.days_data
 
     if days == None:
@@ -513,13 +546,12 @@ async def setting_rep_name(call: CallbackQuery, callback_data: callback_filters.
     )  
 
     # edit message
-    text, kb = kbs.get_day_setting_by_name("reps", day, day_data, lang=user.lang)
+    text, kb = kbs.get_day_setting_by_name("reps", day, day_data, lang=lang)
     await message.edit_text(text, reply_markup=kb)
 
     # update user trainings
     await db.udpate_user_trainings(user_data.id, {'days_data': days})
 
-    state_data = await state.get_data()
     # delete message title
     try:
         await message.bot.delete_message(
@@ -544,16 +576,19 @@ async def setting_custom_rep_name(call: CallbackQuery, callback_data: callback_f
         await call.answer() 
     lang = user.lang
 
+    state_data = await state.get_data()
+    if state_data.get('timer'):
+        await call.answer(texts.cant_edit_at_training[lang])
+        return
+
     msg = await message.answer(texts.new_rep_name[lang])
 
     # get and add message to delete
     messages_to_delete: list = state_data["messages_to_delete"]
     messages_to_delete.append(msg.message_id)
 
-    # set state
+    # set and update state
     await state.set_state(states.UserEditData.new_rep_name)
-    
-    # update state 
     await state.update_data(
         selected_day=selected_day,
         message_to_update=message.message_id,

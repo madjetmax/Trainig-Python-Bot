@@ -8,8 +8,6 @@ from .datatypes import CustomJSON
 import datetime
 from zoneinfo import ZoneInfo
 
-
-
 base_time_zone = ZoneInfo(MODELS_TIME_ZONE)
 
 def now() -> datetime.datetime:
@@ -17,8 +15,8 @@ def now() -> datetime.datetime:
     return date
 
 class Base(DeclarativeBase):
-    created: Mapped[DateTime] = mapped_column(DateTime(True), default=now)
-    updated: Mapped[DateTime] = mapped_column(DateTime(True), default=now, onupdate=now)
+    created: Mapped[datetime.datetime] = mapped_column(DateTime(True), default=now)
+    updated: Mapped[datetime.datetime] = mapped_column(DateTime(True), default=now, onupdate=now)
     
 # *user
 class User(Base):
@@ -77,9 +75,9 @@ class FinishedUserTraining(Base):
     all_reps_count: Mapped[int] = mapped_column(Integer)
     reps_finished: Mapped[int] = mapped_column(Integer)
 
-    time_start: Mapped[DateTime] = mapped_column(DateTime(True))
+    time_start: Mapped[datetime.datetime] = mapped_column(DateTime(True))
     full_training_time: Mapped[str] = mapped_column(String(20))
-    time_end: Mapped[DateTime] = mapped_column(DateTime(True))
+    time_end: Mapped[datetime.datetime] = mapped_column(DateTime(True))
 
     aura_got: Mapped[int] = mapped_column(Integer)
 

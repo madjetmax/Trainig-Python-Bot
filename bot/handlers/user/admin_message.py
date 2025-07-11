@@ -3,6 +3,8 @@ from aiogram.types import Message
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from uuid import uuid4
+import datetime
+from zoneinfo import ZoneInfo
 
 from config import *
 import asyncio
@@ -23,6 +25,9 @@ from middlewares.user import admin_message_middleware
 router = Router()
 router.message.middleware.register(admin_message_middleware)
 
+def set_timezone(date: datetime.datetime) -> datetime.datetime:
+    tz = ZoneInfo(DATETIME_TIME_ZONE)
+    return date.astimezone(tz)
 
 @router.message(Command("admin_message"))
 async def send_admin_message(message: Message, state: FSMContext):
@@ -30,6 +35,14 @@ async def send_admin_message(message: Message, state: FSMContext):
 
     user = await db.get_user(user_data.id)
     lang = user.lang
+
+    # get state and check if on training
+    state_data = await state.get_data()
+    if state_data.get("timer"):
+        await message.answer(
+            texts.cant_admin_messages_while_training[lang]
+        )
+        return
     # send message and kb
     kb = kbs.get_cancel_admin_message(lang)
     await message.answer(texts.enter_admin_message_title[lang], reply_markup=kb)
@@ -44,7 +57,7 @@ async def send_to_admins(bot: Bot, from_user: User, admin_message: AdminChatting
     from_user_id = admin_message.from_user_id
     from_user_name = from_user.name
 
-    date_sent = admin_message.created
+    date_sent = set_timezone(admin_message.created)
     message_text = admin_message.message
     message_id = admin_message.id
 
