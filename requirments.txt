@@ -6,3 +6,4 @@ SQLAlchemy
 asyncpg
 psycopg2-binary
 cachetools
+black
