@@ -1,6 +1,12 @@
 import math
 import random
 
+
+def create_rand_aura_on_user_create() -> float:
+    aura = random.uniform(100, 170)
+    aura = round(aura, 2)
+    return aura
+
 def get_aura(all_reps, reps_finished) -> float:
     """returns aura (float) based on reps data"""
     # generate aura from reps

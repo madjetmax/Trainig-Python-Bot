@@ -859,7 +859,7 @@ async def add_more_ft(call: CallbackQuery, callback_data: callback_filters.UserA
             if i + 1 == len(finished_trainings) and global_i + 1 < len(user.finished_trainings):
                 kb = await kbs.get_add_more_f_t(start+offset, offset, user.lang, user.trainings.all_body_parts)
             # send messsage
-            text = get_training_result(f_t, user.lang)
+            text = get_training_result(f_t, user.lang, user.trainings.all_body_parts)
             await message.answer(text, reply_markup=kb)
 
             # count global_i for checking last f_t in list

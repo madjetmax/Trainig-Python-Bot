@@ -7,6 +7,7 @@ from config import *
 from .datatypes import CustomJSON
 import datetime
 from zoneinfo import ZoneInfo
+from utils import user_aura as user_aura_manager
 
 base_time_zone = ZoneInfo(MODELS_TIME_ZONE)
 
@@ -36,7 +37,7 @@ class User(Base):
     stats: Mapped[List["UserStats"]] = relationship(back_populates="user", cascade="all, delete-orphan", passive_deletes=True)
     
     # aura
-    aura: Mapped[float] = mapped_column(Float, default=0)
+    aura: Mapped[float] = mapped_column(Float, default=user_aura_manager.create_rand_aura_on_user_create)
 
     def __str__(self):
         data = f"{self.id}, {self.name}, {self.status}, {self.aura}"
@@ -79,7 +80,7 @@ class FinishedUserTraining(Base):
     full_training_time: Mapped[str] = mapped_column(String(20))
     time_end: Mapped[datetime.datetime] = mapped_column(DateTime(True))
 
-    aura_got: Mapped[int] = mapped_column(Integer)
+    aura_got: Mapped[float] = mapped_column(Float)
 
 class UserStats(Base):
     __tablename__ = "user_stats"
@@ -90,7 +91,7 @@ class UserStats(Base):
     user: Mapped["User"] = relationship(back_populates="stats")
 
     # aura
-    aura_reduced_on_training_skip: Mapped[int] = mapped_column(Integer, nullable=True)
+    aura_reduced_on_training_skip: Mapped[float] = mapped_column(Float, nullable=True)
 
 
 # TODO bot and admin
